@@ -17,7 +17,7 @@
         UPDATE cn_user
         SET
             cn_user_name = #{cnUserName},
-            age      = #{age,jdbcType=NUMERIC}
+            cn_user_nick = #{cnUserNick}
         WHERE id = #{id,jdbcType=NUMERIC}
     </update>
 
