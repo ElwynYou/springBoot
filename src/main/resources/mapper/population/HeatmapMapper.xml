@@ -1,0 +1,516 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.heatmap.dao.oracle.HeatmapDao">
+	<select id="getHeatMapHistoryListByDay" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapHistory">
+			SELECT CONFIG_ID,
+			       CONFIG_NAME,
+			       TO_CHAR(STAT_DATE,'HH') AS "simpStatDate",
+			       TO_CHAR(STAT_DATE,'YYYY-MM-dd HH') AS STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_HEATMAP_HOUR 
+			 WHERE CONFIG_ID = #{configId}
+			   AND TO_CHAR(STAT_DATE,'YYYY-MM-dd') = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getHeatMapHistoryListByMonth" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapHistory">
+		    SELECT CONFIG_ID,
+			       CONFIG_NAME,
+			       TO_CHAR(STAT_DATE,'dd') AS  "simpStatDate",
+			       TO_CHAR(STAT_DATE,'YYYY-MM-dd') AS STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_HEATMAP_DAY 
+			 WHERE CONFIG_ID = #{configId}
+			   AND TO_CHAR(STAT_DATE,'YYYY-MM') = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getHeatMapHistoryListByYear" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapHistory">
+	        SELECT CONFIG_ID,
+			       CONFIG_NAME,
+			       SUBSTR(STAT_DATE,6,7) AS  "simpStatDate",
+			       STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_HEATMAP_MONTH 
+			 WHERE CONFIG_ID = #{configId}
+			   AND SUBSTR(STAT_DATE ,1,4) = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getHeatMapSuspicious" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapSuspicious">
+	      SELECT CONFIG_ID,
+		       IS_DANGER_PERSON(IMSI_CODE) AS HIGHRISK,
+		       FIRST_CAPTURE_TIME,
+		       IMSI_CODE,
+		       STAT_DATE,
+		       CONFIG_NAME,
+		       LAST_CAPTURE_TIME,
+		       STATUS,
+		       CONFIRM_TIME,
+		       CAPTURE_TIMES
+		  FROM TAB_IMSI_HEATMAP_SUSPICIOUS
+		 WHERE CONFIG_ID = #{configId}
+		   AND STATUS != 2
+		    <if test=" beginTime != null and  beginTime != ''">
+  				 AND STAT_DATE &gt;=to_date(#{beginTime}||'00', 'yyyy-mm-dd hh24:mi:ss')
+  			</if>
+  			 <if test=" endTime != null and  endTime != ''">
+  			    AND STAT_DATE &lt;=to_date(#{endTime}||'59', 'yyyy-mm-dd hh24:mi:ss')
+  			</if>
+		    <if test=" imsiCode != null and  imsiCode != ''">
+  				AND imsi_code like #{imsiCode}||'%'
+  			</if>
+	</select>
+	<update id="updateSuspicious" parameterType="java.util.HashMap">
+	          UPDATE TAB_IMSI_HEATMAP_SUSPICIOUS s SET 	
+					s.status = #{status},
+		     		s.confirm_time = sysdate
+				WHERE s.imsi_code = #{imsiCode}
+				AND s.config_id = #{configId}
+	</update>
+	<select id="getHeatMapDetailByDayList" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapDetail">
+		SELECT CONFIG_ID,
+		       IS_DANGER_AREA(AREA_CODE) AS PREVENT,
+		       CONFIG_NAME,
+		       STAT_DATE,
+		       IMSI_CODE,
+		       OPERATOR_TYPE,
+		       AREA_CODE,
+		       AREA_NAME,
+		       ATTENTION_TYPE,
+		       ATTENTION_NAME,
+		       FIRST_CAPTURE_TIME,
+		       LAST_CAPTURE_TIME,
+		       CAPTURE_NUM
+		  FROM TAB_IMSI_HEATMAP_HOUR_DETAIL 
+		 WHERE CONFIG_ID = #{configId}
+		   AND TO_CHAR(STAT_DATE, 'YYYY-MM-dd HH') = #{queryTime}
+	    <if test=" imsiCode != null and  imsiCode != ''">
+			AND imsi_code like #{imsiCode}||'%'
+		</if>
+		<if test=" city != null and  city != ''">
+		 	AND area_code like #{city}||'%'
+		</if>
+		<if test=" highRisk == 1">
+		 	AND ATTENTION_NAME != ' '
+		 </if>
+		<if test=" prevent == 1">
+			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=area_code)
+		</if>
+	</select>
+	<select id="getHeatMapDetailByMonthList" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapDetail">
+		SELECT CONFIG_ID,
+		       IS_DANGER_AREA(AREA_CODE) AS PREVENT,
+		       CONFIG_NAME,
+		       STAT_DATE,
+		       IMSI_CODE,
+		       OPERATOR_TYPE,
+		       AREA_CODE,
+		       AREA_NAME,
+		       ATTENTION_TYPE,
+		       ATTENTION_NAME,
+		       FIRST_CAPTURE_TIME,
+		       LAST_CAPTURE_TIME,
+		       CAPTURE_NUM
+		  FROM TAB_IMSI_HEATMAP_DAY_DETAIL 
+		 WHERE CONFIG_ID = #{configId}
+		   AND TO_CHAR(STAT_DATE, 'YYYY-MM-dd') = #{queryTime}
+	    <if test=" imsiCode != null and  imsiCode != ''">
+			AND imsi_code like #{imsiCode}||'%'
+		</if>
+		<if test=" city != null and  city != ''">
+		 	AND area_code like #{city}||'%'
+		</if>
+		<if test=" highRisk == 1">
+		 	AND ATTENTION_NAME != ' '
+		 </if>
+		<if test=" prevent == 1">
+			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=area_code)
+		</if>
+	</select>
+	<select id="getHeatMapDetailByYearList" resultType="com.rainsoft.modules.population.heatmap.entity.HeatMapDetail">
+		SELECT CONFIG_ID,
+		       IS_DANGER_AREA(AREA_CODE) AS PREVENT,
+		       CONFIG_NAME,
+		       STAT_DATE,
+		       IMSI_CODE,
+		       OPERATOR_TYPE,
+		       AREA_CODE,
+		       AREA_NAME,
+		       ATTENTION_TYPE,
+		       ATTENTION_NAME,
+		       FIRST_CAPTURE_TIME,
+		       LAST_CAPTURE_TIME,
+		       CAPTURE_NUM
+		  FROM TAB_IMSI_HEATMAP_MONTH_DETAIL 
+		 WHERE CONFIG_ID = #{configId}
+		   AND TO_CHAR(STAT_DATE, 'YYYY-MM') = #{queryTime}
+	    <if test=" imsiCode != null and  imsiCode != ''">
+			AND imsi_code like #{imsiCode}||'%'
+		</if>
+		<if test=" city != null and  city != ''">
+		 	AND area_code like #{city}||'%'
+		</if>
+		<if test=" highRisk == 1">
+		 	AND ATTENTION_NAME != ' '
+		 </if>
+		<if test=" prevent == 1">
+			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=area_code)
+		</if>
+	</select>
+
+    <select id="getMachineIdsByConfigId" resultType="java.lang.String">
+        SELECT s.DEV_ID  FROM Ser_Rq_Heatmap_Config_Device s
+        where s.CONFIG_ID =#{configId}
+
+    </select>
+
+    <select id="getMaxTime" resultType="java.util.Map" >
+        <choose>
+            <when test="interval!=null">
+                SELECT
+                to_char(sysdate - INTERVAL '${interval}' MINUTE, 'yyyy-MM-dd HH24:mi') "beginTime",
+                to_char(sysdate, 'yyyy-MM-dd HH24:mi')                       "endTime"
+                FROM dual
+            </when>
+            <otherwise>
+                SELECT
+                to_char(sysdate - INTERVAL '5' MINUTE, 'yyyy-MM-dd HH24:mi') "beginTime",
+                to_char(sysdate, 'yyyy-MM-dd HH24:mi')                       "endTime"
+                FROM dual
+            </otherwise>
+        </choose>
+
+
+
+    </select>
+    <select id="getHeatmapConfig" resultType="com.rainsoft.modules.population.heatmap.entity.HeatingDistribution">
+        SELECT *
+        FROM SER_RQ_HEATMAP_CONFIG
+        WHERE STATUS = '1'
+    </select>
+
+    <select id="findCowrdList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves">
+        SELECT
+        imsi_code "imsiCode",
+        operator_type "operators",
+        spa.area_code "phoneArea",
+        is_danger_person(imsi_code) AS highrisk,
+        is_danger_area(spa.area_code) AS prevent,
+        firstTime,
+        lastTime,
+        "count"
+        FROM
+        (SELECT a.imsi_code,
+        a.operator_type,
+        a.phone_area,
+        min(a.first_time) firstTime,
+        max(a.last_time) lastTime,
+        count(a.imsi_code) AS "count"
+        FROM SCAN_ENDING_IMPROVE a
+        INNER JOIN MACHINE_INFO m ON m.MACHINE_ID = a.SN_CODE AND m.if_check = 1
+        <if test="configId!=null">
+            and m.MACHINE_ID in(select DEV_ID FROM SER_RQ_HEATMAP_CONFIG_DEVICE WHERE CONFIG_ID=#{configId})
+        </if>
+        <where>
+            m.machine_mathod_type='4'
+            <if test="imsi != null and imsi != ''">
+                AND a.imsi_code like #{imsi}||'%'
+            </if>
+            <if test="beginTime != null and beginTime != ''">
+                AND  a.capture_time &gt;= TO_DATE(#{beginTime},'yyyy-mm-dd hh24:mi')
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND   a.capture_time &lt;= TO_DATE(#{endTime},'yyyy-mm-dd hh24:mi')
+            </if>
+        </where>
+        GROUP BY a.imsi_code,a.operator_type, a.phone_area
+        ) t1 LEFT JOIN SYS_PHONE_TO_AREA spa ON spa.phone_num = t1.phone_area
+        <where>
+            <if test="dangerPerson == 1">
+                AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_PERSON dp WHERE dp.TYPE=1 AND dp.IMSI=imsi_code)
+            </if>
+            <if test="dangerArea == 1">
+                AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=spa.area_code)
+            </if>
+            <if test="phoneArea != null and phoneArea != ''">
+                AND spa.area_code like #{phoneArea}||'%'
+            </if>
+        </where>
+    </select>
+
+
+
+
+
+
+    <!--热力图首页开始-->
+    <!--初始化开始-->
+    <select id="initHeatMapIndex" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select count(t.imsi_code) "totalPerson",
+            t.id configId,
+            t.name configName,
+            t.warn_num warnNum ,
+            sum(is_danger_area(GET_PHONE_AREA_CODE(t.PHONE_AREA))) dangerAreaCount,
+            sum(is_danger_person(t.imsi_code)) dangerPersonCount,
+               (select count(s.IMSI_CODE)
+                from TAB_IMSI_HEATMAP_SUSPICIOUS s
+                where s.config_id = t.id and s.STATUS !='2'
+                and s.LAST_CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                and s.LAST_CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        ) suspiciousNum,
+           #{beginTime} beginTime,
+           #{endTime} endTime
+        from (select distinct s.imsi_code, hc.id, hc.name, hc.warn_num,s.PHONE_AREA
+              from SER_RQ_HEATMAP_CONFIG hc
+                  inner join SER_RQ_HEATMAP_CONFIG_DEVICE hcd
+                      on hc.id = hcd.config_id
+                         and hc.status = 1
+                  left join scan_ending_improve s
+                      on s.sn_code = hcd.dev_id
+                        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+
+             ) t
+        group by id, t.name, t.warn_num
+    </select>
+
+    <!--初始化结束-->
+    <!--热力图首页结束-->
+
+    <!--页面明细开始-->
+    <!--定时刷新-->
+    <select id="findHeatmap" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        SELECT count(distinct s.imsi_code) peopleNum,
+        LONGITUDE,
+        LATITUDE,
+        sn_code
+        FROM scan_ending_improve s
+        where s.sn_code  in
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        group by  LONGITUDE,
+        LATITUDE,
+        sn_code
+    </select>
+    <select id="getTotalPerson" resultType="string">
+        SELECT
+            count(DISTINCT IMSI_CODE) count
+        FROM SCAN_ENDING_IMPROVE s
+        WHERE   to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24:mi') =  substr(#{endTime},0,13)
+        and sn_code in
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+
+    </select>
+    <select id="getDangerAreaCount" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        SELECT sda.brief dangerAreaName,count(ss.imsi_code) peopleNum,sda.AREA areaCode
+        FROM (SELECT distinct GET_PHONE_AREA_CODE(s.PHONE_AREA) areaCode,
+                  s.IMSI_CODE
+              FROM scan_ending_improve s
+              where
+        to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24:mi') =  substr(#{endTime},0,13)
+
+        and sn_code in
+                <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+                    #{id}
+                </foreach>
+             ) ss
+            right JOIN SER_RQ_DANGER_AREA sda
+                ON ss.areaCode = sda.AREA
+        group by sda.brief,sda.AREA
+    </select>
+    <select id="getDangerPersonCount" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select dpg.NAME dangerPersonGroupName,count(distinct s.imsi_code) peopleNum,dpg.ID attentionType
+        from scan_ending_improve s
+            right join ser_rq_danger_person sdp
+                on s.imsi_code = sdp.imsi
+      and  to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24:mi') =  substr(#{endTime},0,13)
+
+        <if test="machineIds!=null">
+           and s.sn_code in
+            <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        right join ser_rq_danger_person_group_rel pgr
+                on sdp.id = pgr.person_id
+            right join ser_rq_danger_person_group dpg
+                on pgr.group_id = dpg.id
+        group by dpg.name,dpg.ID
+    </select>
+    <select id="getSuspiciousPeople" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select distinct a.imsi_code suspiciousImsiCode,
+                        a.capture_times capTimes,
+            a.SHOW_DAYS showDays,
+                        a.last_capture_time statTime,
+                        is_danger_area(get_phone_area_code(s.phone_area)) isDangerArea,
+                        is_danger_person(a.imsi_code) isDangerPerson
+        from TAB_IMSI_HEATMAP_SUSPICIOUS a
+            left join scan_ending_improve s
+                on a.imsi_code = s.imsi_code
+                   WHERE a.CONFIG_ID=#{configId}
+                   and a.status !='2'
+                  and (a.capture_times is not null or a.SHOW_DAYS is not null)
+                  and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                  and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+
+    </select>
+
+    <select id="getHeatClock" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat" >
+        select count(1) "totalPerson",
+        t.id configId,
+        t.name configName,
+        t.warn_num warnNum ,
+        sum(is_danger_area(t.imsi_code)) dangerAreaCount,
+        sum(is_danger_person(t.imsi_code)) dangerPersonCount,
+        (select count(1)
+        from TAB_IMSI_HEATMAP_SUSPICIOUS s
+        where s.config_id = t.id and s.STATUS !='2') suspiciousNum
+        from (select distinct s.imsi_code, hc.id, hc.name, hc.warn_num
+        from SER_RQ_HEATMAP_CONFIG hc
+        inner join SER_RQ_HEATMAP_CONFIG_DEVICE hcd
+        on hc.id = hcd.config_id
+        and hc.status = 1
+        left join scan_ending_improve s
+        on s.sn_code = hcd.dev_id
+        where 1=1
+        <if test="configId!=null">
+            and  hc.ID =#{configId}
+        </if>
+        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+
+        ) t
+        group by id, t.name, t.warn_num
+    </select>
+
+    <!--定时刷新结束-->
+    <!--初始化查询-->
+    <select id="initHeatmap" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        SELECT count(distinct s.imsi_code) peopleNum,
+        m.LONGITUDE,
+        m.LATITUDE,
+        sn_code
+        FROM machine_info m
+        LEFT JOIN  scan_ending_improve s
+        on m.machine_id = s.sn_code
+        and m.machine_type='4' AND m.if_check = 1
+        WHERE s.sn_code  in
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        group by  m.LONGITUDE,
+        m.LATITUDE,
+        sn_code
+    </select>
+    <select id="initTotalPerson" resultType="java.util.Map">
+        SELECT
+        to_char(s.CAPTURE_TIME, 'HH24') "hour",
+        count(DISTINCT IMSI_CODE)       "count"
+        FROM SCAN_ENDING_IMPROVE s
+        WHERE
+        sn_code IN
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and to_char(s.CAPTURE_TIME,'yyyy-MM-dd') =   substr(#{beginTime},0,10)
+
+        GROUP BY to_char(s.CAPTURE_TIME, 'HH24')
+        ORDER BY "hour"
+    </select>
+    <select id="initDangerAreaCount" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select da.AREA areaCode,
+            da.brief   dangerAreaName,
+            case when a.AREA_PEOPLE is null then 0
+            else a.area_people end peopleNum,
+            CASE WHEN  a.STAT_DATE  IS NULL
+                THEN sysdate
+            ELSE a.stat_date END statTime
+        from  ser_rq_danger_area da  left join    TAB_IMSI_HEATMAP_AREA a
+                on da.area=a.area_code
+                   and a.config_id = #{configId}
+                   and to_char(a.STAT_DATE,'yyyy-MM-dd') =   substr(#{beginTime},0,10)
+
+
+        order by area,statTime
+    </select>
+    <select id="initDangerPersonCount" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select dpg.id attentionType,
+               dpg.name dangerPersonGroupName,
+               case
+               when a.ATTENTION_PEOPLE is null then
+                   0
+               else
+                   a.attention_people
+               end peopleNum,
+            CASE WHEN  a.STAT_DATE  IS NULL
+                THEN sysdate
+            ELSE a.stat_date END statTime
+        from ser_rq_danger_person_group dpg
+            left join TAB_IMSI_HEATMAP_ATTENTION a
+                on dpg.id = a.attention_type
+                   and to_char(a.STAT_DATE,'yyyy-MM-dd') =   substr(#{beginTime},0,10)
+                   and a.config_id = #{configId}
+
+    </select>
+    <select id="initSuspiciousPeople" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+        select distinct a.imsi_code suspiciousImsiCode,
+            a.capture_times capTimes,
+            a.SHOW_DAYS showDays,
+            a.last_capture_time statTime,
+            is_danger_area(get_phone_area_code(s.phone_area)) isDangerArea,
+            is_danger_person(a.imsi_code) isDangerPerson
+        from TAB_IMSI_HEATMAP_SUSPICIOUS a
+            left join scan_ending_improve s
+                on a.imsi_code = s.imsi_code
+        WHERE a.CONFIG_ID=#{configId}
+            and (a.capture_times is not null or a.SHOW_DAYS is not null)
+              and a.LAST_CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+              and a.LAST_CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        and a.status !='2'
+    </select>
+<select id="initHeatClock" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat" >
+    select count(t.IMSI_CODE) "totalPerson",
+           t.id configId,
+           t.name configName,
+           t.warn_num warnNum ,
+           sum(is_danger_area (GET_PHONE_AREA_CODE(t.PHONE_AREA))) dangerAreaCount,
+           sum(is_danger_person(t.imsi_code)) dangerPersonCount,
+           (select count(DISTINCT s.IMSI_CODE)
+            from TAB_IMSI_HEATMAP_SUSPICIOUS s
+            where s.config_id = t.id and s.STATUS !='2'
+             and s.LAST_CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+             and s.LAST_CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+    ) suspiciousNum
+    from (select distinct s.imsi_code, hc.id, hc.name, hc.warn_num,s.phone_area
+          from SER_RQ_HEATMAP_CONFIG hc
+              inner join SER_RQ_HEATMAP_CONFIG_DEVICE hcd
+                  on hc.id = hcd.config_id
+                     and hc.status = 1
+                  <if test="configId!=null">
+                      and hc.id=#{configId}
+                  </if>
+              left join scan_ending_improve s
+                  on s.sn_code = hcd.dev_id
+                and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+
+         ) t
+    group by id, t.name, t.warn_num
+</select>
+
+
+    <!--初始化查询结束-->
+<!--页面明细结束-->
+</mapper>

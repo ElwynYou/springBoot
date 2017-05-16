@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.EmphasisAreaConfigDao">
+    
+	<sql id="emphasisAreaConfigColumns">
+		a.id AS "id",
+		a.service_code AS "serviceCode",
+		a.doubtful_period AS "doubtfulPeriod",
+		a.doubtful_days AS "doubtfulDays",
+		a.doubtful_times AS "doubtfulTimes",
+		a.msg_types AS "msgTypes",
+		a.remind_type AS "remindType",
+		a.remind_begin_time AS "remindBeginTime",
+		a.remind_end_time AS "remindEndTime",
+		a.create_by AS "createBy",
+		a.update_time AS "updateTime"
+	</sql>
+	
+	<sql id="emphasisAreaConfigJoins">
+	</sql>
+	
+	<select id="getById" parameterType="java.lang.String" resultType="EmphasisAreaConfig">
+		SELECT 
+			<include refid="emphasisAreaConfigColumns"/>
+		FROM ser_rq_emphasis_area_config a
+		<include refid="emphasisAreaConfigJoins"/>
+		WHERE a.id = #{id}
+	</select>
+    
+	<select id="get" resultType="EmphasisAreaConfig">
+		SELECT 
+			<include refid="emphasisAreaConfigColumns"/>
+		FROM ser_rq_emphasis_area_config a
+		<include refid="emphasisAreaConfigJoins"/>
+		WHERE a.id = #{id}
+	</select>
+	
+	<select id="findList" resultType="EmphasisAreaConfig">
+		SELECT service_name AS "serviceName",
+			<include refid="emphasisAreaConfigColumns"/>
+		FROM ser_rq_emphasis_area_config a
+		<include refid="emphasisAreaConfigJoins"/>
+		INNER JOIN service_info b ON (b.service_code = a.service_code AND b.is_allow_insert='1')
+		<if test="serviceName != null and serviceName != ''">
+		 AND b.service_name LIKE '%'|| #{serviceName}||'%'
+		</if>
+		<where>
+			
+			<if test="serviceCode != null and serviceCode != ''">
+				AND a.service_code LIKE '%'||#{serviceCode}||'%'
+			</if>
+		</where>
+		<choose>
+			<when test="page !=null and page.orderBy != null and page.orderBy != ''">
+				ORDER BY ${page.orderBy}
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+		
+	<insert id="insert">
+		INSERT INTO ser_rq_emphasis_area_config(
+			id,
+			service_code,
+			doubtful_period,
+			doubtful_days,
+			doubtful_times,
+			msg_types,
+			remind_type,
+			remind_begin_time,
+			remind_end_time,
+			create_by,
+			update_time
+		) VALUES (
+			RQ_EMPHASIS_AREA_CONFIG_SEQ.NEXTVAL,
+			#{serviceCode},
+			#{doubtfulPeriod},
+			#{doubtfulDays},
+			#{doubtfulTimes},
+			#{msgTypes},
+			#{remindType},
+			#{remindBeginTime},
+			#{remindEndTime},
+			#{createBy},
+			#{updateTime}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_emphasis_area_config SET 	
+			service_code = #{serviceCode},
+			doubtful_period = #{doubtfulPeriod},
+			doubtful_days = #{doubtfulDays},
+			doubtful_times = #{doubtfulTimes},
+			msg_types = #{msgTypes},
+			remind_type = #{remindType},
+			remind_begin_time = #{remindBeginTime},
+			remind_end_time = #{remindEndTime},
+			update_time = #{updateTime}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_emphasis_area_config
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_emphasis_area_config
+		WHERE id = #{id}
+	</update>
+	
+	<select id="findServiceInfoList" resultType="ServiceInfo">
+		SELECT 
+			a.service_code "serviceCode",
+			a.service_name "serviceName"
+		FROM service_info a
+		where a.IS_ALLOW_INSERT = '1'  AND a.service_type = 'x'
+			<if test="areaCode != null and areaCode != ''">
+				AND a.area_code LIKE #{areaCode}||'%'
+			</if>
+			AND NOT EXISTS (SELECT 1 FROM ser_rq_emphasis_area_config S WHERE s.service_code = a.service_code
+			<if test="serviceCode != null and serviceCode != ''">
+				AND a.service_code != #{serviceCode}
+			</if>
+			)
+	</select>
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.query.dao.oracle.TraceQueryDao">
+    <select id="getTraceQueryList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves"
+            parameterType="map">
+
+        <include refid="getTraceQuery"/>
+    </select>
+    <sql id="getTraceQuery">
+        select n.capture_time as "captureTime", m.address, m.longitudem longitude, m.latitudem latitude
+        from (select t.*,(case
+        when t.longitude is null then
+        b.longitude_latitude else t.longitude
+        end) longitudem,
+        (case
+        when t.latitude is null then
+        b.latitude else t.latitude
+        end) latitudem,
+        b.address
+        from machine_info t
+        INNER join service_info b
+        on b.service_code = t.service_code AND b.is_allow_insert='1' AND t.if_check = 1
+        where t.machine_type = '1'
+        and t.status = '1'
+        <if test="serviceCodes!=null and serviceCodes.size()>0">
+            and t.service_code in
+            <foreach collection="serviceCodes" item="serviceCode" separator="," open="(" close=")">
+                #{serviceCode}
+            </foreach>
+        </if>) m,
+        scan_ending_trace n
+        where m.machine_id = n.equipment_id
+        <choose>
+            <when test="protocolType=='Mac'">
+                and n.ending_mac =#{certificateCode}
+            </when>
+            <otherwise>
+                and  replace(n.ending_mac,'-','') in
+                (select distinct t2.mac from REG_REALID_MAC_RELATION t2
+                left join reg_realid_info t3
+                on t2.certificate_code = t3.certificate_code
+                and t2.certificate_type = t3.certificate_type
+                left join reg_vid_realid_relation t4
+                on t4.certificate_code = t3.certificate_code
+                and t4.certificate_type = t3.certificate_type
+                left join sys_dict t5
+                on t4.certificate_type = t5.dict_code
+                and t5.status = '1'
+                where
+                <choose>
+                    <when test="protocolType == 'cellPhone'">
+                        t2.certificate_code=#{certificateCode})
+                    </when>
+                    <when test="protocolType == 'idCard'">
+                        t2.certificate_code=#{certificateCode})
+                    </when>
+                    <otherwise>
+                        1=1)
+                    </otherwise>
+                </choose>
+            </otherwise>
+        </choose>
+        and m.LONGITUDEm is not null
+        and m.LATITUDEm is not null
+        and n.capture_time &gt;=to_date(#{startTime}, 'yyyy-mm-dd hh24:mi:ss')
+        and n.capture_time &lt;=to_date(#{endTime}, 'yyyy-mm-dd hh24:mi:ss')
+        order by "captureTime" desc
+    </sql>
+
+    <select id="getIMSITraceQueryList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves"
+            parameterType="map">
+
+        <include refid="getIMSITraceQuery"></include>
+    </select>
+    <sql id="getIMSITraceQuery">
+        select s.*, si.address
+        from scan_ending_improve s, machine_info m, service_info si
+        where s.SN_CODE=m.MACHINE_ID
+        and si.service_code = m.service_code AND si.is_allow_insert='1' AND m.if_check = 1
+        and m.MACHINE_MATHOD_TYPE='4'
+        <if test="serviceCodes!=null and serviceCodes.size()>0">
+            and m.service_code in
+            <foreach collection="serviceCodes" item="serviceCode" separator="," open="(" close=")">
+                #{serviceCode}
+            </foreach>
+        </if>
+        <if test="imsi != null">
+            and s.imsi_code=#{imsi}
+        </if>
+        and s.capture_time &gt;=to_date(#{startTime}, 'yyyy-mm-dd hh24:mi:ss')
+        and s.capture_time &lt;=to_date(#{endTime}, 'yyyy-mm-dd hh24:mi:ss')
+    </sql>
+
+
+</mapper>

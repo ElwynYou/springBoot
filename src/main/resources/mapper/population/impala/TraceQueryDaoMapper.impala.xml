@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.query.dao.hbase.TraceQueryHbaseDao">
+    <select id="getTraceQueryList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves"
+            parameterType="map">
+
+        <include refid="getTraceList"></include>
+    </select>
+
+    <sql id="getTraceList">
+        SELECT
+        ending_mac "endingMac",
+        equipment_id "equipmentId",
+        substr(h.capture_time,1,19) "captureTime",
+        h.service_code "serviceCode",
+        h.certificate_Code "certificateCode"
+        FROM H_SCAN_ENDING_TRACE h
+        <where>
+            <trim prefixOverrides="and">
+                <if test="macs!=null and macs.size()>0">
+                    <foreach collection="macs" item="mac" separator="or" open="(" close=")">
+                        h.ending_mac =#{mac}
+                    </foreach>
+                </if>
+                <if test="serviceCode!=null and serviceCode.size()>0">
+                    and h.service_code in
+                    <foreach collection="serviceCode" item="code" separator="," open="(" close=")">
+                        #{code}
+                    </foreach>
+                </if>
+                <if test="startTime!=null">
+                    and substr(h.capture_time,1,19) &gt;=#{startTime}
+                </if>
+                <if test="endTime!=null">
+                    and substr(h.capture_time,1,19) &lt;=#{endTime}
+                </if>
+            </trim>
+            order by captureTime
+        </where>
+    </sql>
+
+    <select id="getIMSITraceQueryList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves"
+            parameterType="map">
+        <include refid="getIMSITraceQuery"></include>
+    </select>
+    <sql id="getIMSITraceQuery">
+        select s.*
+        from h_scan_ending_improve s
+        <where>
+            <trim prefixOverrides="and">
+                <if test="serviceCode!=null and serviceCode.size()>0">
+                    s.service_code in
+                    <foreach collection="serviceCode" item="code" separator="," open="(" close=")">
+                        #{code}
+                    </foreach>
+                </if>
+                <if test="certificateCode != null">
+                    and s.imsi_code=#{certificateCode}
+                </if>
+                <if test="startTime!=null">
+                    and substr(s.capture_time,1,19) &gt;=#{startTime}
+                </if>
+                <if test="endTime!=null">
+                    and substr(s.capture_time,1,19) &lt;=#{endTime}
+                </if>
+            </trim>
+            order by s.capture_time
+        </where>
+    </sql>
+</mapper>

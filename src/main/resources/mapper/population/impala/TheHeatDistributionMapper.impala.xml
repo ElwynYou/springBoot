@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.populationMovement.dao.hbase.TheHeatDistributionHbaseDao">
+
+	<select id="findHeatmap" resultType="com.rainsoft.modules.population.heatmap.entity.TheHeat">
+		<![CDATA[
+			select s.conf_id,substr(STAT_TIME,1,16) "statTime" ,PEOPLE_NUM "peopleNum",s.equipment_mac "equipmentMac"
+			 from H_SCAN_IMSI_HEATMAP s
+			where s.conf_id=cast(#{id} as string) 
+			and (substr(s.STAT_TIME,1,19) >= #{startTime} and substr(s.STAT_TIME,1,19) <= #{endTime}) 
+		]]>
+	</select>
+	
+</mapper>

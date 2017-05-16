@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.query.dao.oracle.QueryAnalysisDao">
+    <select id="findCowrdList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves">
+        SELECT a.imsi_code "imsiCode",
+        a.operator_type "operators",
+        spa.area_code "phoneArea",
+        min(a.first_time) firstTime,
+        max(a.last_time) lastTime,
+        count(a.imsi_code) count,
+        count(DISTINCT dp.imsi) AS highrisk,
+        count(DISTINCT decode(rda.area, NULL, null, a.IMSI_CODE)) AS prevent
+        FROM SCAN_ENDING_IMPROVE a
+        INNER JOIN MACHINE_INFO m
+        ON m.MACHINE_ID = a.SN_CODE
+        AND m.if_check = 1
+        INNER JOIN SERVICE_INFO s
+        on s.SERVICE_CODE = m.SERVICE_CODE
+        AND s.is_allow_insert = '1'
+        AND m.if_check = 1
+        LEFT JOIN ser_rq_danger_person dp
+        ON dp.imsi = a.imsi_code
+        LEFT JOIN sys_phone_to_area spa
+        ON spa.phone_num = a.phone_area
+        LEFT JOIN ser_rq_danger_area rda
+        ON rda.area = spa.area_code
+
+        <where>
+            m.machine_mathod_type='4'
+            <if test="areaCode != null and areaCode != ''">
+                AND s.area_code like #{areaCode}||'%'
+            </if>
+            <if test="serviceCode != null and serviceCode != ''">
+                AND s.SERVICE_CODE = #{serviceCode}
+            </if>
+            <if test="imsi != null and imsi != ''">
+                AND a.imsi_code like #{imsi}||'%'
+            </if>
+            <if test="machineId != null and machineId != ''">
+                AND (a.sn_code like #{machineId}||'%' OR m.machine_name like '%'||#{machineId}||'%')
+            </if>
+            <if test="beginTime != null and beginTime != ''">
+                AND a.capture_time &gt;=to_date(#{beginTime}||'00', 'yyyy-mm-dd hh24:mi:ss')
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND a.capture_time &lt;=to_date(#{endTime}||'59', 'yyyy-mm-dd hh24:mi:ss')
+            </if>
+            <if test="index!=null">
+                and s.service_type in ('x','z')
+            </if>
+            <if test="phoneArea != null and phoneArea != ''">
+                AND spa.area_code like #{phoneArea}||'%'
+            </if>
+        </where>
+        GROUP BY a.imsi_code,a.operator_type, spa.area_code
+        <choose>
+            <when test="dangerPerson==1 and dangerArea==1">
+                having count(DISTINCT dp.imsi) >0 and count(DISTINCT decode(rda.area, NULL, null, a.IMSI_CODE))>0
+            </when>
+            <when test="dangerPerson==1">
+                having count(DISTINCT dp.imsi) >0
+            </when>
+            <when test="dangerArea==1">
+                having count(DISTINCT decode(rda.area, NULL, null, a.IMSI_CODE))>0
+            </when>
+        </choose>
+        <if test="orderBy!=null and orderBy!=''">
+            order by ${orderBy}
+        </if>
+    </select>
+
+
+    <select id="getMachineMapList" resultType="com.rainsoft.modules.population.query.entity.AnalysisMachine">
+        SELECT m.machine_id "machineId",
+        m.machine_name,
+        m.latitude,
+        m.longitude,
+        si.address,
+        count(DISTINCT s.imsi_code) "timesCount",
+        count(DISTINCT dp.imsi) "highRiskCount",
+        count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE)) "preventCount"
+        FROM machine_info m
+        INNER JOIN service_info si
+        ON si.service_code = m.service_code
+        AND si.is_allow_insert = '1'
+        <if test="index!=null">
+            and si.service_type IN ('x', 'z','y')
+        </if>
+        LEFT JOIN scan_ending_improve s
+        ON m.machine_id = s.sn_code
+        <if test="beginTime!=null and beginTime!=''">
+            and s.capture_time &gt;=to_date(#{beginTime}||'00', 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and s.capture_time &lt;=to_date(#{endTime}||'59', 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        LEFT JOIN ser_rq_danger_person dp
+        ON dp.imsi = s.imsi_code
+        LEFT JOIN sys_phone_to_area spa
+        ON spa.phone_num = s.phone_area
+        LEFT JOIN ser_rq_danger_area rda
+        ON rda.area = spa.area_code
+        where m.machine_mathod_type = '4'
+        AND m.if_check = 1
+        <if test="machineId!=null and machineId!=''">
+            and (m.machine_id like '%'||#{machineId}||'%' or m.machine_name like '%'||#{machineId}||'%')
+        </if>
+        <if test="areaCode!=null">
+            and si.area_code like #{areaCode}||'%'
+        </if>
+        GROUP BY m.machine_id,
+        m.machine_name,
+        si.address,
+        m.latitude,
+        m.longitude
+        <choose>
+            <when test="dangerPerson=='1'.toString() and dangerArea=='1'.toString()">
+                having count(DISTINCT dp.imsi) >0 and count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE))>0
+            </when>
+            <when test="dangerPerson=='1'.toString()">
+                having count(DISTINCT dp.imsi) >0
+            </when>
+            <when test="dangerArea=='1'.toString()">
+                having count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE))>0
+            </when>
+        </choose>
+    </select>
+
+    <select id="getMachineList" resultType="com.rainsoft.modules.population.query.entity.AnalysisMachine">
+        SELECT m.machine_id "machineId",
+        m.machine_name,
+        m.latitude,
+        m.longitude,
+        si.address,
+        count(DISTINCT s.imsi_code) "timesCount",
+        count(DISTINCT dp.imsi) "highRiskCount",
+        count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE)) "preventCount"
+        FROM machine_info m
+        INNER JOIN service_info si
+        ON si.service_code = m.service_code
+        AND si.is_allow_insert = '1'
+        <if test="index!=null">
+            and si.service_type IN ('x', 'z','y')
+        </if>
+        LEFT JOIN scan_ending_improve s
+        ON m.machine_id = s.sn_code
+        <if test="beginTime!=null and beginTime!=''">
+            and s.capture_time &gt;=to_date(#{beginTime}||'00', 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        <if test="endTime!=null and endTime!=''">
+            and s.capture_time &lt;=to_date(#{endTime}||'59', 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        LEFT JOIN ser_rq_danger_person dp
+        ON dp.imsi = s.imsi_code
+        LEFT JOIN sys_phone_to_area spa
+        ON spa.phone_num = s.phone_area
+        LEFT JOIN ser_rq_danger_area rda
+        ON rda.area = spa.area_code
+        where m.machine_mathod_type = '4'
+        AND m.if_check = 1
+        <if test="machineId!=null and machineId != ''">
+            and (m.machine_id like '%'||#{machineId}||'%' or m.machine_name like '%'||#{machineId}||'%')
+        </if>
+        <if test="areaCode!=null">
+            and si.area_code like #{areaCode}||'%'
+        </if>
+        GROUP BY m.machine_id,
+        m.machine_name,
+        si.address,
+        m.latitude,
+        m.longitude
+        <choose>
+            <when test="dangerPerson=='1'.toString() and dangerArea=='1'.toString()">
+                having count(DISTINCT dp.imsi) >0 and count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE))>0
+            </when>
+            <when test="dangerPerson=='1'.toString()">
+                having count(DISTINCT dp.imsi) >0
+            </when>
+            <when test="dangerArea=='1'.toString()">
+                having count(DISTINCT decode(rda.area, NULL, null, s.IMSI_CODE))>0
+            </when>
+        </choose>
+    </select>
+
+
+    <!--碰撞分析-->
+
+    <select id="collisionQuery" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves">
+        SELECT s.imsi_code "imsiCode",
+        operators,
+        highRisk,
+        prevent,
+        min(first_time) first_time,
+        max(last_time) last_time,
+        GET_PHONE_AREA_CODE(PHONE_AREA) "phoneArea",
+        count(imsi_code) AS count
+        FROM (SELECT a.imsi_code,
+        (SELECT x.dict_name
+        FROM sys_dict x
+        WHERE x.parent_id = '1001'
+        AND x.dict_code = a.operator_type) AS operators,
+        a.phone_area,
+        is_danger_person(a.imsi_code) AS highRisk,
+        is_danger_area(GET_PHONE_AREA_CODE(a.phone_area)) AS prevent,
+        a.first_time,
+        a.last_time
+        FROM scan_ending_improve a
+        LEFT JOIN MACHINE_INFO m
+        ON m.MACHINE_ID = a.SN_CODE AND m.if_check = 1
+        where a.sn_code = #{machineId1}
+        <if test="beginTime1!=null">
+            and a.capture_time &gt;=to_date(#{beginTime1}, 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        <if test="endTime1!=null">
+            and a.capture_time &lt;=to_date(#{endTime1}, 'yyyy-mm-dd hh24:mi:ss')
+        </if>
+        and exists (select distinct s.imsi_code
+        from scan_ending_improve s
+        where s.sn_code = #{machineId2}
+        and a.capture_time &gt;=to_date(#{beginTime2}, 'yyyy-mm-dd hh24:mi:ss')
+        and a.capture_time &lt;=to_date(#{endTime2}, 'yyyy-mm-dd hh24:mi:ss')
+        )
+        <if test="machineId3!=null">
+            and exists (select distinct s.imsi_code
+            from scan_ending_improve s
+            where s.sn_code = #{machineId3}
+            and a.capture_time &gt;=to_date(#{beginTime3}, 'yyyy-mm-dd hh24:mi:ss')
+            and a.capture_time &lt;=to_date(#{endTime3}, 'yyyy-mm-dd hh24:mi:ss')
+
+            )
+        </if>
+
+        <if test="machineId4!=null">
+            and exists (select distinct s.imsi_code
+            from scan_ending_improve s
+            where s.sn_code = #{machineId4}
+            and a.capture_time &gt;=to_date(#{beginTime4}, 'yyyy-mm-dd hh24:mi:ss')
+            and a.capture_time &lt;=to_date(#{endTime4}, 'yyyy-mm-dd hh24:mi:ss')
+
+            )
+        </if>
+        <if test="machineId5!=null">
+            and exists (select distinct s.imsi_code
+            from scan_ending_improve s
+            where s.sn_code = #{machineId5}
+            and a.capture_time &gt;=to_date(#{beginTime5}, 'yyyy-mm-dd hh24:mi:ss')
+            and a.capture_time &lt;=to_date(#{endTime5}, 'yyyy-mm-dd hh24:mi:ss')
+
+            )
+        </if>
+
+        ) s
+        GROUP BY imsi_code, phone_area, operators, highRisk,prevent
+        having count(imsi_code)>1
+        <choose>
+            <when test="dangerPerson=='1'.toString() and dangerArea=='1'.toString()">
+                and highRisk=#{dangerPerson} and prevent=#{dangerArea}
+            </when>
+            <when test="dangerPerson=='1'.toString()">
+                and highRisk=#{dangerPerson}
+            </when>
+            <when test="dangerArea=='1'.toString()">
+                and prevent=#{dangerArea}
+            </when>
+        </choose>
+    </select>
+
+    <select id="getMachine" resultType="com.rainsoft.modules.population.query.entity.AnalysisMachine" parameterType="string">
+        SELECT *
+        FROM MACHINE_INFO m, SERVICE_INFO si
+        WHERE si.SERVICE_CODE = m.SERVICE_CODE AND si.is_allow_insert = '1' AND m.if_check = 1 AND m.MACHINE_MATHOD_TYPE = '4' AND m.STATUS = '1' AND
+              MACHINE_NAME IS NOT NULL
+              AND si.AREA_CODE LIKE #{areaCode} || '%'
+    </select>
+</mapper>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.AlarmStrategyDao">
+    
+	<sql id="alarmStrategyColumns">
+		a.id AS "id",
+		a.name AS "name",
+		a.start_date AS "startDate",
+		a.end_date AS "endDate",
+		a.start_time AS "startTime",
+		a.end_time AS "endTime",
+		a.args AS "args",
+		a.update_time AS "updateTime",
+		a.update_uid AS "updateUid"
+	</sql>
+	
+	<sql id="alarmStrategyJoins">
+	</sql>
+	
+	<select id="getById" parameterType="java.lang.String" resultType="AlarmStrategy">
+		SELECT 
+			<include refid="alarmStrategyColumns"/>
+		FROM ser_rq_alarm_strategy a
+		<include refid="alarmStrategyJoins"/>
+		WHERE a.id = #{id}
+	</select>
+    
+	<select id="get" resultType="AlarmStrategy">
+		SELECT 
+			<include refid="alarmStrategyColumns"/>
+		FROM ser_rq_alarm_strategy a
+		<include refid="alarmStrategyJoins"/>
+		WHERE a.id = #{id}
+	</select>
+	
+	<select id="findList" resultType="AlarmStrategy">
+		SELECT 
+			<include refid="alarmStrategyColumns"/>
+		FROM ser_rq_alarm_strategy a
+		<include refid="alarmStrategyJoins"/>
+		<where>
+			<if test="name != null and name != ''">
+				AND a.name LIKE '%'||#{name}||'%'
+			</if>
+			<if test="updateUid > 0">
+				AND a.update_uid=#{updateUid}
+			</if>
+		</where>
+		<choose>
+			<when test="page !=null and page.orderBy != null and page.orderBy != ''">
+				ORDER BY ${page.orderBy}
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+		
+	<insert id="insert">
+		INSERT INTO ser_rq_alarm_strategy(
+			id,
+			name,
+			start_date,
+			end_date,
+			start_time,
+			end_time,
+			args,
+			update_time,
+			update_uid
+		) VALUES (
+			SER_RQ_ALARM_STRATEGY_SEQ.NEXTVAL,
+			#{name},
+			#{startDate},
+			#{endDate},
+			#{startTime},
+			#{endTime},
+			#{args},
+			#{updateTime},
+			#{updateUid}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_alarm_strategy SET 	
+			name = #{name},
+			start_date = #{startDate},
+			end_date = #{endDate},
+			start_time = #{startTime},
+			end_time = #{endTime},
+			args = #{args},
+			update_time = #{updateTime},
+			update_uid = #{updateUid}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_alarm_strategy
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_alarm_strategy
+		WHERE id = #{id}
+	</update>
+	
+</mapper>
