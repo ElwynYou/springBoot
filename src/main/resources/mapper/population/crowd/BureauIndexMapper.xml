@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rainsoft.modules.population.crowd.dao.BureauIndexDao">
+
+    <!--首页统计-总数-->
+    <select id="getTotalPeopleCount" resultType="java.util.Map" parameterType="map">
+        SELECT
+            count(DISTINCT DECODE(si.service_type, 'z', si.service_code, NULL)) "cell",
+            count(DISTINCT DECODE(si.service_type, 'x', si.service_code, NULL)) "improtantArea",
+            count(DISTINCT mi.MACHINE_ID)                                       "machineNum",
+            count(DISTINCT sei.imsi_code)                                       "totalPerson",
+            count(DISTINCT dp.imsi)                                             "highRiskNum",
+            count(DISTINCT decode(rda.area, NULL, NULL, sei.IMSI_CODE))         "preventNum"
+        FROM service_info si
+            LEFT JOIN MACHINE_INFO mi
+                ON (mi.IF_CHECK = 1 AND MI.MACHINE_MATHOD_TYPE = '4' AND
+                    mi.SERVICE_CODE = si.SERVICE_CODE)
+            LEFT JOIN scan_ending_improve sei
+                ON sei.sn_code = mi.MACHINE_ID
+                   AND sei.CAPTURE_TIME <![CDATA[>=]]> trunc(sysdate - 1)
+                   AND sei.CAPTURE_TIME <![CDATA[<]]> trunc(sysdate)
+            LEFT JOIN ser_rq_danger_person dp ON dp.imsi = sei.imsi_code
+            LEFT JOIN sys_phone_to_area spa ON spa.phone_num = sei.phone_area
+            LEFT JOIN ser_rq_danger_area rda ON rda.area = spa.area_code
+        WHERE si.is_allow_insert = '1'
+              AND si.service_type IN ('x', 'z','y') AND si.area_code LIKE #{areaCode} || '%'
+    </select>
+
+
+    <select id="getDetailCount" resultType="com.rainsoft.modules.population.crowd.entity.TotalCount">
+        SELECT
+            a.code                  areaCode,
+            a.area_name,
+            nvl(b.cell, 0)          cell,
+            nvl(b.improtantArea, 0) improtantArea,
+            nvl(b.machineNum, 0)    machineNum,
+            nvl(b.totalPerson, 0)   totalPerson,
+            nvl(b.highRiskNum, 0)   highRiskNum,
+            nvl(b.preventNum, 0)    preventNum
+        FROM SYS_AREA_CODE a
+            LEFT JOIN
+            (SELECT
+                 si.area_code,
+                 count(DISTINCT DECODE(si.service_type, 'z', si.service_code, NULL)) AS cell,
+                 count(DISTINCT DECODE(si.service_type, 'x', si.service_code, NULL)) AS improtantArea,
+                 count(DISTINCT mi.MACHINE_ID)                                       AS machineNum,
+                 count(DISTINCT sei.imsi_code)                                       AS totalPerson,
+                 count(DISTINCT dp.imsi)                                             AS highRiskNum,
+                 count(DISTINCT decode(rda.area, NULL, NULL, sei.IMSI_CODE))         AS preventNum
+             FROM
+                 service_info si LEFT JOIN MACHINE_INFO mi ON (mi.IF_CHECK = 1 AND MI.MACHINE_MATHOD_TYPE = '4' AND mi.SERVICE_CODE = si.SERVICE_CODE)
+                 LEFT JOIN scan_ending_improve sei
+                     ON sei.sn_code = mi.MACHINE_ID AND sei.CAPTURE_TIME <![CDATA[>=]]> trunc(sysdate - 1) AND sei.CAPTURE_TIME <![CDATA[<]]> trunc(sysdate)
+                 LEFT JOIN ser_rq_danger_person dp ON dp.imsi = sei.imsi_code
+                 LEFT JOIN sys_phone_to_area spa ON spa.phone_num = sei.phone_area
+                 LEFT JOIN ser_rq_danger_area rda ON rda.area = spa.area_code
+             WHERE si.is_allow_insert = '1' AND si.service_type IN ('x', 'z','y') AND si.area_code LIKE #{areaCode} || '%'
+             GROUP BY si.area_code) b ON b.area_code = a.code
+        WHERE a.code LIKE #{areaCode} || '%'
+        ORDER BY code
+    </select>
+
+
+</mapper>

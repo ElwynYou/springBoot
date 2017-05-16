@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.DangerPersonGroupDao">
+    
+	<sql id="dangerPersonGroupColumns">
+		a.id AS "id",
+		a.name AS "name",
+		a.create_by AS "createBy",
+		a.update_time AS "updateTime",
+		a.note AS "note"
+	</sql>
+	
+	<sql id="dangerPersonGroupJoins">
+	</sql>
+
+	<select id="getById" parameterType="java.lang.String" resultType="DangerPersonGroup">
+		SELECT
+		<include refid="dangerPersonGroupColumns"/>
+		FROM ser_rq_danger_person_group a
+		<include refid="dangerPersonGroupJoins"/>
+		WHERE a.id = #{id}
+	</select>
+
+
+	<select id="getByName" parameterType="java.lang.String" resultType="DangerPersonGroup">
+		SELECT
+		<include refid="dangerPersonGroupColumns"/>
+		FROM ser_rq_danger_person_group a
+		<include refid="dangerPersonGroupJoins"/>
+		WHERE a.name = #{name}
+	</select>
+    
+	<select id="get" resultType="DangerPersonGroup">
+		SELECT 
+			<include refid="dangerPersonGroupColumns"/>
+		FROM ser_rq_danger_person_group a
+		<include refid="dangerPersonGroupJoins"/>
+		WHERE a.id = #{id}
+	</select>
+	
+	<select id="findList" resultType="DangerPersonGroup">
+		SELECT 
+			<include refid="dangerPersonGroupColumns"/>
+			, (SELECT COUNT(1) FROM ser_rq_danger_person b, ser_rq_danger_person_group_rel c where b.id=c.person_id and c.group_id=a.id) AS "personCount"
+		FROM ser_rq_danger_person_group a
+		<include refid="dangerPersonGroupJoins"/>
+		<where>
+			<if test="name != null and name != ''">
+				AND a.name LIKE '%'||#{name}||'%'
+			</if>
+		</where>
+		ORDER BY a.id desc
+	</select>
+    <select id="checkName" resultType="java.lang.Integer">
+		SELECT count(1) from ser_rq_danger_person_group  WHERE NAME=#{name} and id != #{id}
+	</select>
+
+    <insert id="insert">
+		INSERT INTO ser_rq_danger_person_group(
+			id,
+			name,
+			create_by,
+			update_time,
+			note
+		) VALUES (
+			SER_RQ_DANGER_PERSON_GROUP_SEQ.NEXTVAL,
+			#{name},
+			#{createBy},
+			#{updateTime},
+			#{note}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_danger_person_group SET 	
+			name = #{name},
+			update_time = #{updateTime},
+			note = #{note}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_danger_person_group
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_danger_person_group
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteGroupRel" parameterType="java.lang.String">
+		DELETE FROM ser_rq_danger_person_group_rel
+		WHERE group_id = #{id}
+	</update>
+</mapper>

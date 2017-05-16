@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.DangerPersonDao">
+    
+	<sql id="dangerPersonColumns">
+		a.id AS "id",
+		a.type AS "type",
+		a.name AS "name",
+		a.id_no AS "idNo",
+		a.imsi AS "imsi",
+		a.phone AS "phone",
+		a.rank AS "rank",
+		a.brief AS "brief",
+		a.create_time AS "createTime",
+		a.create_by AS "createBy",
+		a.update_time AS "updateTime"
+	</sql>
+		
+	<select id="getById" parameterType="java.lang.String" resultType="DangerPerson">
+		SELECT 
+			<include refid="dangerPersonColumns"/>
+		,(select wm_concat(r.group_id) FROM ser_rq_danger_person_group_rel r where r.person_id=a.id) AS "groupId"
+		FROM ser_rq_danger_person a
+		WHERE a.id = #{id}
+	</select>
+
+	<select id="count" resultType="java.lang.Integer">
+		SELECT count(1) FROM ser_rq_danger_person a
+		<where>
+			<if test="id != null and id != ''">
+				AND id != #{id}
+			</if>
+			<if test="imsi != null and imsi != ''">
+				AND imsi = #{imsi}
+			</if>
+			<if test="phone != null and phone != ''">
+				AND phone = #{phone}
+			</if>
+			<if test="idNo != null and idNo != ''">
+				AND id_no = #{idNo}
+			</if>
+		</where>
+	</select>
+    
+	<select id="get" resultType="DangerPerson">
+		SELECT 
+			<include refid="dangerPersonColumns"/>
+			,(select wm_concat(r.group_id) FROM ser_rq_danger_person_group_rel r where r.person_id=a.id) AS "groupId"
+		FROM ser_rq_danger_person a
+		WHERE a.id = #{id}
+	</select>
+
+	<select id="findList" resultType="DangerPerson">
+		SELECT 
+			<include refid="dangerPersonColumns"/>
+			,(select wm_concat(b.name) FROM ser_rq_danger_person_group b, ser_rq_danger_person_group_rel r
+		where b.id=r.group_id and r.person_id=a.id) AS "groupName"
+		FROM ser_rq_danger_person a
+		<where>
+			<if test="type > 0">
+				AND a.type = #{type}
+			</if>
+			<if test="name != null and name != ''">
+				AND a.name LIKE #{name}||'%'
+			</if>
+			<if test="imsi != null and imsi != ''">
+				AND a.imsi LIKE #{imsi}||'%'
+			</if>
+			<if test="phone != null and phone != ''">
+				AND a.phone LIKE #{phone}||'%'
+			</if>
+			<if test="idNo != null and idNo != ''">
+				AND a.id_no LIKE #{idNo}||'%'
+			</if>
+			<if test="groupId != null and groupId != ''">
+				AND a.id IN (SELECT person_id from ser_rq_danger_person_group_rel where group_id IN 
+				<foreach collection="groupIds" item="item" open="(" close=")" separator=",">
+				#{item}
+				</foreach>
+				)
+			</if>
+		</where>
+			ORDER BY a.id DESC
+		<!--<choose>-->
+			<!--<when test="page !=null and page.orderBy != null and page.orderBy != ''">-->
+				<!--ORDER BY ${page.orderBy}-->
+			<!--</when>-->
+			<!--<otherwise>-->
+			<!--</otherwise>-->
+		<!--</choose>-->
+	</select>
+		
+	<insert id="insert">
+		<selectKey resultType="java.lang.String" order="BEFORE" keyProperty="id">
+		SELECT SER_RQ_DANGER_PERSON_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO ser_rq_danger_person(
+			id,
+			type,
+			name,
+			id_no,
+			imsi,
+			phone,
+			rank,
+			brief,
+			create_time,
+			create_by,
+			update_time
+		) VALUES (
+			#{id},
+			#{type},
+			#{name},
+			#{idNo},
+			#{imsi},
+			#{phone},
+			#{rank},
+			#{brief},
+			#{createTime},
+			#{createBy},
+			#{updateTime}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_danger_person SET 	
+			type = #{type},
+			name = #{name},
+			id_no = #{idNo},
+			imsi = #{imsi},
+			phone = #{phone},
+			rank = #{rank},
+			brief = #{brief},
+			update_time = #{updateTime}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_danger_person
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_danger_person
+		WHERE id = #{id}
+	</update>
+	
+	<insert id="insertGroupRel" parameterType="map">
+		INSERT INTO ser_rq_danger_person_group_rel(
+			group_id,
+			person_id
+		) VALUES (
+			#{group_id},
+			#{person_id}
+		)
+	</insert>
+	<update id="deleteGroupRel" parameterType="java.lang.String">
+		DELETE FROM ser_rq_danger_person_group_rel
+		WHERE person_id = #{id}
+	</update>
+</mapper>

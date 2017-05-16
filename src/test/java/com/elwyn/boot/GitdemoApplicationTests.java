@@ -21,6 +21,7 @@ public class GitdemoApplicationTests {
         user.setCnUserName("fdsa");
         userDao.save(user);
         System.out.println("插入用户信息"+user.getCnUserName());
+        System.out.println("测试修改");
     }
 
 }

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rainsoft.modules.population.config.dao.HeatmapConfigDao">
+	<update id="updateStatus">
+		UPDATE ser_rq_heatmap_config
+		<set>
+			<if test="status=='1'.toString()">
+				status='1'
+			</if>
+			<if test="status=='0'.toString()">
+				status='0'
+			</if>
+		</set>
+		<where>
+			<if test="configId!=null">
+				id=#{configId}
+			</if>
+		</where>
+	</update>
+	<update id="updateHeatmapConfig" parameterType="heatmapConfig">
+		UPDATE SER_RQ_HEATMAP_CONFIG
+		<set>
+				NAME=#{name},
+				STATUS=#{status},
+				DEVICE_NUM=#{deviceNum},
+				WARN_NUM=#{warnNum},
+				ALERM_NUM=#{alermNum},
+				START_TIME=#{startTime},
+				END_TIME=#{endTime},
+				MAP_TYPE=#{mapType},
+				MAP_INFO=#{mapInfo},
+				DOUBTFUL_PERIOD=#{doubtfulPeriod},
+				DOUBTFUL_DAYS=#{doubtfulDays},
+				DOUBTFUL_TIMES=#{doubtfulTimes}
+		</set>
+		<where>
+			id=#{id}
+		</where>
+	</update>
+
+	<select id="findList" resultType="heatmapConfig">
+		SELECT
+		rc.ID,
+		rc.NAME "name",
+		rc.CREATE_TIME "creatTime",
+		rc.DEVICE_NUM "deviceNum",
+		rc.STATUS "status",
+		rc.DOUBTFUL_DAYS,
+		rc.DOUBTFUL_PERIOD,
+		rc.DOUBTFUL_TIMES
+		FROM ser_rq_heatmap_config rc
+		<where>
+			<if test="status != null and status != '-1'.toString()">
+				and rc.status = #{status}
+			</if>
+			<if test="name != null and name !=''">
+				and rc.name = #{name}
+			</if>
+		</where>
+	</select>
+
+	<select id="getHeatMapConfigById" resultType="HeatmapConfig">
+		select *
+		from
+		SER_RQ_HEATMAP_CONFIG
+		WHERE ID=#{id}
+	</select>
+	<select id="getMachineIds" resultType="java.lang.String">
+		SELECT DEV_ID FROM
+		SER_RQ_HEATMAP_CONFIG_DEVICE WHERE CONFIG_ID=#{id}
+	</select>
+
+	<!--添加热力配置 -->
+	<insert id="addHeatMapConfig" parameterType="HeatmapConfig">
+		<selectKey keyProperty="id" resultType="java.lang.String" order="BEFORE">
+			select seq_ser_rq_heatmap_config.nextval as id from DUAL
+		</selectKey>
+		INSERT INTO ser_rq_heatmap_config(ID,
+		NAME,
+		STATUS,
+		CREATE_TIME,
+		CREATE_BY,
+		DEVICE_NUM,
+		WARN_NUM,
+		ALERM_NUM,
+		START_TIME,
+		END_TIME,
+		MAP_TYPE,
+		MAP_INFO,
+		DOUBTFUL_PERIOD,
+		DOUBTFUL_DAYS,
+		DOUBTFUL_TIMES
+		) VALUES (
+		#{id},
+		#{name},
+		#{status},
+		sysdate,
+		#{createBy},
+		#{deviceNum},
+		#{warnNum},
+		#{alermNum},
+		#{startTime},
+		#{endTime},
+		#{mapType},
+		#{mapInfo},
+		#{doubtfulPeriod},
+		#{doubtfulDays},
+		#{doubtfulTimes}
+		)
+	</insert>
+	<insert id="addHeatmapConfigDevice" parameterType="map">
+		INSERT INTO
+		ser_rq_heatmap_config_device(CONFIG_ID,DEV_ID) VALUES (#{id},
+		#{devId})
+	</insert>
+	<!--添加热了配置和设备对应信息 -->
+
+	<delete id="delHeatingConfig">
+		DELETE FROM ser_rq_heatmap_config
+		WHERE id =
+		#{configId}
+	</delete>
+	<delete id="delHeatmapConfigDevice">
+		DELETE FROM ser_rq_heatmap_config_device
+		WHERE
+		config_id = #{configId}
+	</delete>
+
+</mapper>

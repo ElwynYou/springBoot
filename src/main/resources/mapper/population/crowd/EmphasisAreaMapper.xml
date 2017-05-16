@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rainsoft.modules.population.crowd.dao.EmphasisAreaDao">
+    
+    <select id="findCowrdList" resultType="com.rainsoft.modules.population.query.entity.ScanEndingImproves">
+        SELECT
+        imsi_code "imsiCode",
+        operator_type "operators",
+        spa.area_code "phoneArea",
+        is_danger_person(imsi_code) AS highrisk,
+        is_danger_area(spa.area_code) AS prevent,
+        firstTime,
+        lastTime,
+        "count"
+        FROM
+        (SELECT a.imsi_code,
+        a.operator_type,
+        a.phone_area,
+        min(a.first_time) firstTime,
+        max(a.last_time) lastTime,
+        count(a.imsi_code) AS "count"
+        FROM SCAN_ENDING_IMPROVE a
+        INNER JOIN MACHINE_INFO m ON m.MACHINE_ID = a.SN_CODE AND m.if_check = 1
+        <where>
+            m.machine_mathod_type='4'
+            <if test="imsi != null and imsi != ''">
+                AND a.imsi_code like #{imsi}||'%'
+            </if>
+            <if test="serviceCode != null and serviceCode != ''">
+   				AND m.SERVICE_CODE = #{serviceCode}
+   			</if>
+             <if test="beginTime != null and beginTime != ''">
+                AND  a.capture_time &gt;= TO_DATE(#{beginTime},'yyyy-mm-dd hh24:mi')
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND  a.capture_time &lt;= TO_DATE(#{endTime},'yyyy-mm-dd hh24:mi')
+            </if>
+        </where>
+        GROUP BY a.imsi_code,a.operator_type, a.phone_area
+        ) t1 LEFT JOIN SYS_PHONE_TO_AREA spa ON spa.phone_num = t1.phone_area
+        <where>
+            <if test="dangerPerson == 1">
+                AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_PERSON dp WHERE  dp.IMSI=imsi_code)
+            </if>
+            <if test="dangerArea == 1">
+                AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=spa.area_code)
+            </if>
+            <if test="phoneArea != null and phoneArea != ''">
+                AND spa.area_code like #{phoneArea}||'%'
+            </if>
+        </where>
+    </select>
+    
+    
+    
+    <select id="getEmphasisAreaHistoryListByDay" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaHistory">
+			SELECT SERVICE_CODE AS "configId",
+			       SERVICE_NAME AS "configName",
+			       TO_CHAR(STAT_DATE,'HH') AS "simpStatDate",
+			       TO_CHAR(STAT_DATE,'YYYY-MM-dd HH') AS STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_KEYAREA_HOUR 
+			 WHERE SERVICE_CODE = #{configId}
+			   AND TO_CHAR(STAT_DATE,'YYYY-MM-dd') = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getEmphasisAreaHistoryListByMonth" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaHistory">
+		    SELECT SERVICE_CODE AS "configId",
+			       SERVICE_NAME AS "configName",
+			       TO_CHAR(STAT_DATE,'dd') AS  "simpStatDate",
+			       TO_CHAR(STAT_DATE,'YYYY-MM-dd') AS STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_KEYAREA_DAY 
+			 WHERE SERVICE_CODE = #{configId}
+			   AND TO_CHAR(STAT_DATE,'YYYY-MM') = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getEmphasisAreaHistoryListByYear" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaHistory">
+	        SELECT SERVICE_CODE AS "configId",
+			       SERVICE_NAME AS "configName",
+			       SUBSTR(STAT_DATE,6,7) AS  "simpStatDate",
+			       STAT_DATE,
+			       TOTAL_PEOPLE,
+			       ATTENTION_PEOPLE,
+			       DANGER_PEOPLE
+			  FROM TAB_IMSI_KEYAREA_MONTH 
+			 WHERE SERVICE_CODE = #{configId}
+			   AND SUBSTR(STAT_DATE ,1,4) = #{queryTime}
+			   ORDER BY STAT_DATE ASC
+	</select>
+	<select id="getEmphasisAreaSuspicious" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaSuspicious">
+	    SELECT  SERVICE_CODE AS "configId",
+			    SERVICE_NAME AS "configName",
+		       IS_DANGER_PERSON(IMSI_CODE) AS HIGHRISK,
+		       FIRST_CAPTURE_TIME,
+		       IMSI_CODE,
+		       STAT_DATE,
+		       LAST_CAPTURE_TIME,
+		       STATUS,
+		       CONFIRM_TIME,
+		       CAPTURE_TIMES
+		  FROM TAB_IMSI_KEYAREA_SUSPICIOUS
+		 WHERE SERVICE_CODE = #{configId}
+		   AND STATUS != 2
+		     <if test=" beginTime != null and  beginTime != ''">
+  				 AND STAT_DATE &gt;=to_date(#{beginTime}||'00', 'yyyy-mm-dd hh24:mi:ss')
+  			</if>
+  			 <if test=" endTime != null and  endTime != ''">
+  			    AND STAT_DATE &lt;=to_date(#{endTime}||'59', 'yyyy-mm-dd hh24:mi:ss')
+  			</if>
+		    <if test=" imsiCode != null and  imsiCode != ''">
+  				AND imsi_code like #{imsiCode}||'%'
+  			</if>
+	</select>
+	<update id="updateSuspicious" parameterType="java.util.HashMap">
+	          UPDATE TAB_IMSI_KEYAREA_SUSPICIOUS s SET 	
+					s.status = #{status},
+		     		s.confirm_time =sysdate
+				WHERE s.imsi_code = #{imsiCode}
+				AND s.SERVICE_CODE = #{configId}
+	</update>
+	<select id="getEmphasisAreaDetailByDayList" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaDetail">
+		<include refid="queryEmphasisAreaDetailFirst"/>
+		  FROM TAB_IMSI_KEYAREA_HOUR_DETAIL 
+		<include refid="queryEmphasisAreaDetailLast"/>
+		  AND TO_CHAR(STAT_DATE, 'YYYY-MM-dd HH') = #{queryTime}
+	</select>
+	<select id="getEmphasisAreaDetailByMonthList" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaDetail">
+		<include refid="queryEmphasisAreaDetailFirst"/>
+		  FROM TAB_IMSI_KEYAREA_DAY_DETAIL 
+		<include refid="queryEmphasisAreaDetailLast"/>
+		   AND TO_CHAR(STAT_DATE, 'YYYY-MM-dd') = #{queryTime}
+	    
+	</select>
+	<select id="getEmphasisAreaDetailByYearList" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisAreaDetail">
+		<include refid="queryEmphasisAreaDetailFirst"/>
+		  FROM TAB_IMSI_KEYAREA_MONTH_DETAIL 
+		<include refid="queryEmphasisAreaDetailLast"/>
+		  AND TO_CHAR(STAT_DATE, 'YYYY-MM') = #{queryTime}
+	</select>
+	<sql id="queryEmphasisAreaDetailFirst">
+		SELECT SERVICE_CODE AS "configId",
+			   SERVICE_NAME AS "configName",
+		       IS_DANGER_AREA(AREA_CODE) AS PREVENT,
+		       STAT_DATE,
+		       IMSI_CODE,
+		       OPERATOR_TYPE,
+		       AREA_CODE,
+		       AREA_NAME,
+		       ATTENTION_TYPE,
+		       ATTENTION_NAME,
+		       FIRST_CAPTURE_TIME,
+		       LAST_CAPTURE_TIME,
+		       CAPTURE_NUM
+	</sql>
+	<sql id="queryEmphasisAreaDetailLast">
+		 WHERE SERVICE_CODE = #{configId}
+	    <if test=" imsiCode != null and  imsiCode != ''">
+			AND imsi_code like #{imsiCode}||'%'
+		</if>
+		<if test=" city != null and  city != ''">
+		 	AND area_code like #{city}||'%'
+		</if>
+		<if test=" highRisk == 1">
+		 	AND ATTENTION_NAME != ' '
+		 </if>
+		<if test=" prevent == 1">
+			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=area_code)
+		</if>
+	</sql>
+</mapper>

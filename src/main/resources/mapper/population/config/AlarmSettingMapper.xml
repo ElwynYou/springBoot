@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.AlarmSettingDao">
+    
+	<sql id="alarmSettingColumns">
+		a.id AS "id",
+		a.alarm_id AS "alarmId",
+		a.service_code AS "serviceCode",
+		a.receiver AS "receiver",
+		a.alarm_type AS "remindType",
+		a.update_time AS "updateTime",
+		a.update_uid AS "updateUid",
+		b.name AS "alarmName",
+		c.service_name AS "serviceName",
+		c.service_type AS "serviceType",
+		c.area_code AS "areaCode"
+	</sql>
+	
+	<sql id="alarmSettingJoins">
+	LEFT JOIN SER_RQ_ALARM_STRATEGY b ON a.alarm_id=b.id
+	LEFT JOIN SERVICE_INFO c ON (a.service_code=c.service_code  AND c.is_allow_insert='1')
+	</sql>
+	
+	<select id="getById" parameterType="java.lang.String" resultType="AlarmSetting">
+		SELECT 
+			<include refid="alarmSettingColumns"/>
+		FROM ser_rq_alarm_setting a
+		<include refid="alarmSettingJoins"/>
+		WHERE a.id = #{id}
+	</select>
+    
+	<select id="get" resultType="AlarmSetting">
+		SELECT 
+			<include refid="alarmSettingColumns"/>
+		FROM ser_rq_alarm_setting a
+		<include refid="alarmSettingJoins"/>
+		WHERE a.id = #{id}
+	</select>
+	
+	<select id="findList" resultType="AlarmSetting">
+		SELECT 
+			<include refid="alarmSettingColumns"/>
+		FROM ser_rq_alarm_setting a
+		<include refid="alarmSettingJoins"/>
+		<where>
+			<if test="serviceName != null and serviceName != ''">
+				AND (a.service_code LIKE #{serviceName}||'%' OR c.service_name LIKE '%'||#{serviceName}||'%')
+			</if>
+			<if test="receiver != null and receiver != ''">
+				AND a.receiver LIKE '%'||#{receiver}||'%'
+			</if>
+			<if test="updateUid > 0">
+				AND a.update_uid=#{updateUid}
+			</if>
+			<if test="areaCode != null and areaCode != ''">
+				AND c.area_code LIKE #{areaCode}||'%'
+			</if>
+			<if test="serviceType != null and serviceType != ''">
+				AND c.service_type=#{serviceType}
+			</if>
+		</where>
+		<choose>
+			<when test="page !=null and page.orderBy != null and page.orderBy != ''">
+				ORDER BY ${page.orderBy}
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+		
+	<insert id="insert">
+		INSERT INTO ser_rq_alarm_setting(
+			id,
+			alarm_id,
+			service_code,
+			receiver,
+			alarm_type,
+			update_time,
+			update_uid
+		) VALUES (
+			SER_RQ_ALARM_SETTING_SEQ.NEXTVAL,
+			#{alarmId},
+			#{serviceCode},
+			#{receiver},
+			#{remindType},
+			#{updateTime},
+			#{updateUid}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_alarm_setting SET 	
+			alarm_id = #{alarmId},
+			service_code = #{serviceCode},
+			receiver = #{receiver},
+			alarm_type = #{remindType},
+			update_time = #{updateTime},
+			update_uid = #{updateUid}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_alarm_setting
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_alarm_setting
+		WHERE id = #{id}
+	</update>
+	
+	<select id="findServiceInfoList" resultType="ServiceInfo">
+		SELECT 
+			a.service_code "serviceCode",
+			a.service_name "serviceName"
+		FROM service_info a
+		where a.IS_ALLOW_INSERT = '1' 
+			<if test="areaCode != null and areaCode != ''">
+				AND a.area_code LIKE #{areaCode}||'%'
+			</if>
+			<if test="serviceType != null and serviceType != ''">
+				AND a.service_type = #{serviceType}
+			</if>
+			AND NOT EXISTS (SELECT 1 FROM ser_rq_alarm_setting S WHERE s.service_code = a.service_code
+			<if test="serviceCode != null and serviceCode != ''">
+				AND a.service_code != #{serviceCode}
+			</if>
+			)
+	</select>
+</mapper>

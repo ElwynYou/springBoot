@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.analyze.dao.oracle.IAreaContrastDao">
+
+
+    <select id="areaContrast" resultType="java.util.Map" parameterType="list">
+        SELECT
+        t1.imsi_code "imsiCode",
+        <foreach collection="list" item="map" separator="," close=",">
+            ${map.areaNum}
+        </foreach>
+        get_phone_area_code(t0.phone_area) "phoneArea",
+        is_danger_person(t1.imsi_code) "highRisk"
+        FROM
+        <foreach collection="list" item="map" index="i" separator="inner join">
+            (select imsi_code, count(1) ${map.areaNum}, phone_area
+            from SCAN_ENDING_IMPROVE
+            where phone_area &gt; 0
+            and sn_code in
+            <foreach collection="map.machineIds" item="id" separator="," open="(" close=")">
+                #{id}
+            </foreach>
+            group by imsi_code, phone_area) t${i}
+            <if test="i>0">
+                on t0.IMSI_CODE = t${i}.IMSI_CODE
+            </if>
+        </foreach>
+    </select>
+</mapper>

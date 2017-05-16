@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rainsoft.modules.population.crowd.dao.EmphasisAreaRefreshDao">
+    <select id="initEmphasisAreaIndex" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT count(t.imsi_code) peopleNum,
+        t.service_code serviceCode,
+        t.service_name serviceName,
+        sum(is_danger_area(GET_PHONE_AREA_CODE(t.PHONE_AREA))) dangerAreaCount,
+        sum(is_danger_person(t.imsi_code)) dangerPersonCount,
+            #{beginTime} beginTime,
+            #{endTime} endTime,
+        (SELECT count(1)
+        FROM TAB_IMSI_KEYAREA_SUSPICIOUS s
+        WHERE s.service_code=t.service_code AND s.STATUS !='2'
+        and s.LAST_CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.LAST_CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        ) suspiciousNum
+        FROM (SELECT DISTINCT s.imsi_code, si.service_code,si.service_name,s.phone_area
+        FROM service_info si
+        INNER JOIN machine_info mi
+        ON si.service_code=mi.service_code
+        AND si.service_type='x'
+        AND mi.machine_mathod_type='4' AND si.is_allow_insert='1' AND mi.if_check = 1
+        LEFT JOIN scan_ending_improve s
+        ON s.sn_code = mi.machine_id
+        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        ) t
+        GROUP BY service_code, t.service_name
+    </select>
+    <select id="getMaxTime" resultType="java.util.Map">
+        <choose>
+            <when test="interval!=null">
+                SELECT
+                to_char(sysdate - INTERVAL '${interval}' MINUTE, 'yyyy-MM-dd HH24:mi') "beginTime",
+                to_char(sysdate, 'yyyy-MM-dd HH24:mi')                       "endTime"
+                FROM dual
+            </when>
+            <otherwise>
+                SELECT
+                to_char(sysdate - INTERVAL '5' MINUTE, 'yyyy-MM-dd HH24:mi') "beginTime",
+                to_char(sysdate, 'yyyy-MM-dd HH24:mi')                       "endTime"
+                FROM dual
+            </otherwise>
+        </choose>
+    </select>
+    <!--页面明细开始-->
+    <!--定时刷新-->
+
+    <select id="getTotalPerson" resultType="java.lang.String">
+        SELECT
+        count(DISTINCT IMSI_CODE)       count
+        FROM SCAN_ENDING_IMPROVE s
+        WHERE
+        sn_code IN
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+        #{id}
+         </foreach>
+        and to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24')= substr(#{endTime},0,13)
+
+    </select>
+
+    <select id="initTotalPerson" resultType="java.util.Map">
+        SELECT
+        count(DISTINCT IMSI_CODE)       "count",
+        to_char(s.CAPTURE_TIME, 'HH24') "hour"
+        FROM SCAN_ENDING_IMPROVE s
+        WHERE
+        sn_code IN
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and to_char(s.CAPTURE_TIME,'yyyy-MM-dd') = substr(#{beginTime},0,10)
+        GROUP BY to_char(s.CAPTURE_TIME, 'HH24')
+        ORDER BY "hour"
+    </select>
+
+    <select id="getDangerAreaCount" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT sda.brief dangerAreaName,count(ss.imsi_code) peopleNum,sda.AREA areaCode
+        FROM (SELECT distinct GET_PHONE_AREA_CODE(s.PHONE_AREA) areaCode,
+        s.IMSI_CODE
+        FROM scan_ending_improve s
+        where
+        sn_code in
+        <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        and to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24')= substr(#{endTime},0,13)
+
+        ) ss
+        right JOIN SER_RQ_DANGER_AREA sda
+        ON ss.areaCode = sda.AREA
+        group by sda.brief,sda.AREA
+    </select>
+    <select id="getDangerPersonCount" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        select dpg.NAME dangerPersonGroupName,count(distinct s.imsi_code) peopleNum,dpg.ID attentionType
+        from scan_ending_improve s
+        right join ser_rq_danger_person sdp
+        on s.imsi_code = sdp.imsi
+        <if test="machineIds!=null">
+            and s.sn_code in
+            <foreach collection="machineIds" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        and to_char(s.CAPTURE_TIME,'yyyy-MM-dd HH24')= substr(#{endTime},0,13)
+        right join ser_rq_danger_person_group_rel pgr
+        on sdp.id = pgr.person_id
+        right join ser_rq_danger_person_group dpg
+        on pgr.group_id = dpg.id
+        group by dpg.name,dpg.ID
+    </select>
+    <select id="getSuspiciousPeople" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT DISTINCT a.imsi_code suspiciousImsiCode,
+        a.capture_times capTimes,
+        a.show_days showDays,
+        a.last_capture_time statTime,
+        is_danger_area(get_phone_area_code(s.phone_area)) isDangerArea,
+        is_danger_person(a.imsi_code) isDangerPerson
+        FROM TAB_IMSI_KEYAREA_SUSPICIOUS a
+        LEFT JOIN scan_ending_improve s
+        ON a.imsi_code = s.imsi_code
+        WHERE a.SERVICE_CODE=#{serviceCode}
+        AND a.status !='2'
+            and (a.show_days is not null
+            or  a.capture_times is not null)
+              and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+              and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+    </select>
+
+
+    <!--定时刷新结束-->
+    <!--初始化查询-->
+    <select id="initDangerAreaCount" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT
+            da.AREA                areaCode,
+            da.brief               dangerAreaName,
+            CASE WHEN a.AREA_PEOPLE IS NULL
+                THEN 0
+            ELSE a.area_people END peopleNum,
+            CASE WHEN  a.STAT_DATE  IS NULL
+                THEN sysdate
+            ELSE a.stat_date END statTime
+        FROM ser_rq_danger_area da LEFT JOIN TAB_IMSI_KEYAREA_AREA a
+                ON da.area = a.area_code
+                   AND a.SERVICE_CODE = #{serviceCode}
+                   and to_char(a.stat_date,'yyyy-MM-dd') = substr(#{beginTime},0,10)
+
+        ORDER BY area, statTime
+    </select>
+    <select id="initDangerPersonCount" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT
+            dpg.id      attentionType,
+            dpg.name    dangerPersonGroupName,
+            CASE
+            WHEN a.ATTENTION_PEOPLE IS NULL
+                THEN
+                    0
+            ELSE
+                a.attention_people
+            END         peopleNum,
+            CASE WHEN  a.STAT_DATE  IS NULL
+                THEN sysdate
+            ELSE a.stat_date END statTime
+        FROM ser_rq_danger_person_group dpg
+            LEFT JOIN TAB_IMSI_KEYAREA_ATTENTION a
+                ON dpg.id = a.attention_type
+                   and to_char(a.stat_date,'yyyy-MM-dd') = substr(#{beginTime},0,10)
+                   AND a.SERVICE_CODE = #{serviceCode}
+        order by statTime
+
+    </select>
+    <select id="initSuspiciousPeople" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT DISTINCT
+            a.imsi_code                                       suspiciousImsiCode,
+            a.capture_times                                   capTimes,
+            a.last_capture_time                               statTime,
+            a.SHOW_DAYS showDays,
+            is_danger_area(get_phone_area_code(s.phone_area)) isDangerArea,
+            is_danger_person(a.imsi_code)                     isDangerPerson,
+            a.STATUS        suspiciousStatus
+        FROM TAB_IMSI_KEYAREA_SUSPICIOUS a
+            LEFT JOIN scan_ending_improve s
+                ON a.imsi_code = s.imsi_code
+                   WHERE a.SERVICE_CODE = #{serviceCode}
+                       and (a.capture_times is not null
+                       or a.show_days is not null)
+                         and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                         and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+                   AND a.status != '2'
+    </select>
+
+
+    <select id="getMachineIdsByserviceCode" resultType="java.lang.String">
+        SELECT MACHINE_ID
+        FROM MACHINE_INFO
+        WHERE SERVICE_CODE = #{serviceCode} AND if_check = 1
+    </select>
+
+    <select id="emphasisArea" resultType="com.rainsoft.modules.population.crowd.entity.EmphasisRefresh">
+        SELECT count(t.imsi_code) peopleNum,
+        t.service_code serviceCode,
+        t.service_name serviceName,
+        sum(is_danger_area(GET_PHONE_AREA_CODE(t.PHONE_AREA))) dangerAreaCount,
+        sum(is_danger_person(t.imsi_code)) dangerPersonCount,
+        to_char(sysdate,'yyyy-MM-dd HH24:mi:ss') statTime,
+        (SELECT count(1)
+        FROM TAB_IMSI_KEYAREA_SUSPICIOUS s
+        WHERE s.service_code=t.service_code AND s.STATUS !='2'
+        <choose>
+            <when test="init!=null">
+                and to_char(s.LAST_CAPTURE_TIME,'yyyy-MM-dd')
+                =to_char(sysdate,'yyyy-MM-dd')
+            </when>
+            <otherwise>
+                and s.LAST_CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+                and s.LAST_CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+            </otherwise>
+        </choose>
+        ) suspiciousNum
+        FROM (SELECT DISTINCT s.imsi_code, si.service_code,si.service_name,s.phone_area
+        FROM service_info si
+        INNER JOIN machine_info mi
+        ON si.service_code=mi.service_code
+        AND si.service_type='x'
+        AND mi.machine_mathod_type='4'
+        AND si.is_allow_insert='1' AND mi.if_check = 1
+        LEFT JOIN scan_ending_improve s
+        ON s.sn_code = mi.machine_id
+        and s.CAPTURE_TIME <![CDATA[ >=  ]]> to_date(#{beginTime},'yyyy-MM-dd HH24:mi:ss')
+        and s.CAPTURE_TIME <![CDATA[ <=  ]]> to_date(#{endTime},'yyyy-MM-dd HH24:mi:ss')
+        <where>
+            <if test="serviceCode!=null">
+                and si.SERVICE_CODE=#{serviceCode}
+            </if>
+        </where>
+        ) t
+        GROUP BY service_code, t.service_name
+    </select>
+</mapper>

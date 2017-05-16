@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rainsoft.modules.population.crowd.dao.CommunityDao">
+    
+    <select id="getCommunityDetailList"  resultType="com.rainsoft.modules.population.crowd.entity.CrowdDetail">
+         
+         SELECT A.IMSI_CODE AS "imsiCode",
+                A.OPERATOR_NAME  AS "operators",
+                a.AREA_CODE AS "phoneArea",
+                 IS_DANGER_PERSON(IMSI_CODE) AS HIGHRISK,
+               IS_DANGER_AREA(a.AREA_CODE) AS PREVENT,
+                A.FIRST_CAPTURE_TIME AS FIRST_TIME,
+                A.LAST_CAPTURE_TIME  AS LAST_TIME,
+                A.CAPTURE_NUM AS COUNT,
+                A.PEOPLE_TYPE AS PEOPLE_TYPE
+              
+           FROM TAB_IMSI_PEOPLE_DETAIL A 
+           WHERE A.SERVICE_CODE = #{serviceCode}
+           AND A.STAT_DATE = TO_DATE(#{queryTime}, 'yyyy-mm-dd')
+            <if test=" imsiCode != null and  imsiCode != ''">
+  				AND A.imsi_code like #{imsiCode}||'%'
+  			</if>
+  			<if test=" city != null and  city != ''">
+      			AND a.area_code like #{city}||'%'
+      		</if>
+      		<if test=" peopleType != null and  peopleType !=''">
+		        AND A.PEOPLE_TYPE = #{peopleType} 
+		    </if>
+		     <if test=" highRisk == 1">
+      			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_PERSON dp WHERE dp.TYPE=1 AND dp.IMSI=imsi_code)
+      		</if>
+      		<if test=" prevent == 1">
+      			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=a.area_code)
+      		</if>
+    </select>
+    
+    
+    <update id="updateSignDetail" parameterType="java.util.HashMap">
+		UPDATE TAB_IMSI_PEOPLE_FIX s SET 	
+			s.people_type = #{peopleType}
+		WHERE s.imsi_code = #{imsiCode}
+		AND s.service_code = #{serviceCode}
+	</update>
+    
+    
+    <select id="getCommunityHistoryList" resultType="com.rainsoft.modules.population.crowd.entity.CrowdHistory">
+    SELECT to_char(stat_date,#{timeFomat}) AS CAPTURETIME,
+	TOTAL_NUM AS TOTAL_COUNT,
+	flash_people AS UNMEANT_NUM,
+	(SELECT COUNT(1) FROM TAB_IMSI_PEOPLE_DETAIL WHERE IS_DANGER_PERSON(IMSI_CODE)>0 AND stat_date=a.stat_date AND service_code = a.service_code) DANGER_PERSON_COUNT,
+	(SELECT COUNT(1) FROM TAB_IMSI_PEOPLE_DETAIL WHERE IS_DANGER_AREA(area_CODE)>0 AND stat_date=a.stat_date AND service_code = a.service_code) DANGER_AREA_COUNT 
+	FROM TAB_IMSI_PEOPLE_STAT a WHERE
+	a.service_code=#{serviceCode} 
+     <if test="beginTime != null and beginTime != ''">
+     AND  a.stat_date <![CDATA[>=]]> TO_DATE(#{beginTime}, #{timeFomat})
+      </if>
+      <if test="overTime != null and overTime != ''">
+     AND a.stat_date <![CDATA[<=]]> TO_DATE(#{overTime}, #{timeFomat})
+      </if>
+    </select>
+    
+    
+    <select id="getCommunityList" resultType="com.rainsoft.modules.population.crowd.entity.CrowdManage">
+      <include refid="CrowdAreaListLump"/>
+    </select>
+    
+   <sql id="CrowdAreaListLump">
+   SELECT SERVICE_CODE,
+        SERVICE_NAME AS "serviceName",
+        TOTAL_NUM AS TOTAL_COUNT,
+        (SELECT COUNT(1) FROM TAB_IMSI_PEOPLE_DETAIL WHERE IS_DANGER_PERSON(IMSI_CODE)>0 AND stat_date=tt.stat_date AND service_code = tt.service_code) AS DANGER_PERSON_COUNT,
+        (SELECT COUNT(1) FROM TAB_IMSI_PEOPLE_DETAIL WHERE IS_DANGER_AREA(area_CODE)>0 AND stat_date=tt.stat_date AND service_code = tt.service_code) AS DANGER_AREA_COUNT,
+        FLASH_PEOPLE AS UNMEANT_NUM
+   FROM (SELECT DISTINCT A.SERVICE_CODE,
+                         A.SERVICE_NAME,
+                         B.FLASH_PEOPLE,
+                         B.TOTAL_NUM,
+                         B.STAT_DATE
+           FROM SERVICE_INFO A
+           LEFT JOIN TAB_IMSI_PEOPLE_STAT B
+             ON (A.SERVICE_CODE = B.SERVICE_CODE AND B.STAT_DATE = TO_DATE(#{queryTime}, 'YYYY-MM-DD'))
+        WHERE A.AREA_CODE LIKE #{areaCode}|| '%' AND A.is_allow_insert='1' AND A.SERVICE_TYPE = #{serviceType}) tt
+   </sql>
+	
+	<select id="getCommunityAnalyze" parameterType="java.util.HashMap"  resultType="com.rainsoft.modules.population.crowd.entity.CrowdAnalyze">
+	 SELECT A.TEMP_RESIDENCE_PEOPLE AS TEMPPEOPLENUM,
+             A.FLASH_PEOPLE          AS UNMEANT_NUM,
+             DANGER_PERSON_COUNT,
+             DANGER_AREA_COUNT
+        FROM TAB_IMSI_PEOPLE_STAT A,
+             (SELECT SUM(IS_DANGER_PERSON(IMSI_CODE)) AS DANGER_PERSON_COUNT,
+                     SUM(IS_DANGER_AREA(B.AREA_CODE)) AS DANGER_AREA_COUNT
+                FROM TAB_IMSI_PEOPLE_DETAIL B
+               WHERE B.SERVICE_CODE = #{serviceCode}
+                 AND B.STAT_DATE = TO_DATE(#{queryTime}, 'YYYY-MM-DD')) TT
+       WHERE A.SERVICE_CODE = #{serviceCode}
+         AND A.STAT_DATE = TO_DATE(#{queryTime}, 'YYYY-MM-DD')
+	</select>
+	
+	<select id="getAbnormalDetailCount" resultType="Integer">
+		SELECT COUNT(IMSI_CODE) FROM 
+		TAB_IMSI_PEOPLE_DETAIL A
+        INNER JOIN ser_rq_community_config c ON A.service_code=c.service_code 
+        AND A.last_capture_time <![CDATA[<=]]> (TO_DATE(#{queryTime}, 'yyyy-mm-dd')-c.long_disappear_warn_days)
+        WHERE A.SERVICE_CODE = #{serviceCode}
+        AND A.PEOPLE_TYPE = 1
+    </select>
+    
+   	<select id="getAbnormalDetailList"  resultType="com.rainsoft.modules.population.crowd.entity.CrowdDetail">
+        SELECT A.IMSI_CODE AS "imsiCode",
+                A.OPERATOR_NAME  AS "operators",
+                a.AREA_CODE AS "phoneArea",
+                IS_DANGER_PERSON(IMSI_CODE) AS HIGHRISK,
+               IS_DANGER_AREA(a.AREA_CODE) AS PREVENT,
+                A.FIRST_CAPTURE_TIME AS FIRST_TIME,
+                A.LAST_CAPTURE_TIME  AS LAST_TIME,
+                A.CAPTURE_NUM AS COUNT,
+                A.PEOPLE_TYPE AS PEOPLE_TYPE
+              
+           FROM TAB_IMSI_PEOPLE_DETAIL A
+           INNER JOIN ser_rq_community_config c ON A.service_code=c.service_code 
+           AND A.last_capture_time <![CDATA[<=]]> (TO_DATE(#{queryTime}, 'yyyy-mm-dd')-c.long_disappear_warn_days)
+           
+           WHERE A.SERVICE_CODE = #{serviceCode}
+           AND A.PEOPLE_TYPE = 1
+            <if test=" imsiCode != null and  imsiCode != ''">
+  				AND A.imsi_code like #{imsiCode}||'%'
+  			</if>
+  			<if test=" city != null and  city != ''">
+      			AND a.area_code like #{city}||'%'
+      		</if>
+		    <if test=" highRisk == 1">
+      			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_PERSON dp WHERE dp.TYPE=1 AND dp.IMSI=imsi_code)
+      		</if>
+      		<if test=" prevent == 1">
+      			AND EXISTS (SELECT 1 FROM SER_RQ_DANGER_AREA da WHERE da.area=a.area_code)
+      		</if>
+    </select>
+    
+    <update id="deleteAbnormal">
+		DELETE FROM TAB_IMSI_PEOPLE_DETAIL
+		WHERE IMSI_CODE = #{imsiCode} AND SERVICE_CODE = #{serviceCode}
+	</update>
+	
+	<resultMap id="personTypeMapResult"   type="com.rainsoft.modules.population.crowd.entity.CrowdAnalyzeTemp">  
+     <result property="key" column="PEOPLE_TYPE" javaType="String"/>  
+     <result property="value" column="PEOPLE_TYPE_COUNT" javaType="String"/>  
+    </resultMap> 
+	<select id="getPersonType" parameterType="java.util.HashMap"  resultMap="personTypeMapResult">
+	select PEOPLE_TYPE,count(1) as PEOPLE_TYPE_COUNT
+	from(
+ 		SELECT DISTINCT imsi_code, PEOPLE_TYPE
+ 	FROM TAB_IMSI_PEOPLE_DETAIL a
+	where a.SERVICE_CODE = #{serviceCode} 
+	 <if test=" queryTime != null and  queryTime != ''">
+       AND  a.STAT_DATE like '%'|| to_date(#{queryTime}, 'yyyy-mm-dd')
+    </if>
+	) group by PEOPLE_TYPE
+	</select>
+	
+	
+	<resultMap id="dangerMapResult"   type="com.rainsoft.modules.population.crowd.entity.CrowdAnalyzeTemp">  
+     <result property="key" column="BRIEF" javaType="String"/>  
+     <result property="value" column="TOTAL_COUNT" javaType="String"/>  
+    </resultMap> 
+	<select id="getDangerMap" parameterType="java.util.HashMap" resultMap="dangerMapResult">
+		
+		SELECT AREA AS PHONE_AREA,
+       BRIEF,
+       SUM(CASE
+             WHEN IMSI_CODE IS NULL THEN
+              0
+             ELSE
+              1
+           END) TOTAL_COUNT
+  	FROM (SELECT DISTINCT IMSI_CODE, AREA_CODE
+          FROM TAB_IMSI_PEOPLE_DETAIL
+         WHERE SERVICE_CODE = #{serviceCode}
+           AND STAT_DATE = TO_DATE(#{queryTime}, 'yyyy-mm-dd')) B
+ 	 INNER JOIN SER_RQ_DANGER_AREA A
+    	ON B.AREA_CODE = A.AREA
+ 	GROUP BY AREA, BRIEF
+	</select>
+</mapper>

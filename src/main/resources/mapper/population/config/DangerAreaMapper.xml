@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.DangerAreaDao">
+    
+	<sql id="dangerAreaColumns">
+		a.area AS "area",
+		a.brief AS "brief",
+		a.create_time AS "createTime",
+		a.update_time AS "updateTime",
+		a.create_by AS "createBy"
+	</sql>
+	
+	<sql id="dangerAreaJoins">
+	</sql>
+	
+	<select id="getById" parameterType="java.lang.String" resultType="DangerArea">
+		SELECT 
+			<include refid="dangerAreaColumns"/>
+			FROM ser_rq_danger_area a
+		<include refid="dangerAreaJoins"/>
+		WHERE a.area = #{id}
+	</select>
+    
+	<select id="get" resultType="DangerArea">
+		SELECT 
+			<include refid="dangerAreaColumns"/>
+		FROM ser_rq_danger_area a
+		<include refid="dangerAreaJoins"/>
+		WHERE a.area = #{id}
+	</select>
+	
+	<select id="findList" resultType="DangerArea">
+		SELECT 
+			<include refid="dangerAreaColumns"/>
+		FROM ser_rq_danger_area a
+		<include refid="dangerAreaJoins"/>
+		<where>
+			
+			<if test="area != null and area != ''">
+				AND a.area LIKE #{area}||'%'
+			</if>
+		</where>
+		ORDER BY a.create_time desc
+	</select>
+		
+	<insert id="insert">
+		INSERT INTO ser_rq_danger_area(
+			area,
+			brief,
+			create_time,
+			update_time,
+			create_by
+		) VALUES (
+			#{area},
+			#{brief},
+			#{createTime},
+			#{updateTime},
+			#{createBy}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_danger_area SET 	
+			area = #{area},
+			brief = #{brief},
+			update_time = #{updateTime}
+		WHERE area = #{area}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_danger_area
+		WHERE area = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_danger_area
+		WHERE area = #{area}
+	</update>
+
+	<select id="checkName" resultType="java.lang.Integer">
+		SELECT count(1) from ser_rq_danger_area  WHERE brief=#{name} and area != #{id}
+	</select>
+
+</mapper>

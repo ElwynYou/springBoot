@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.rainsoft.modules.population.config.dao.CommunityConfigDao">
+    
+	<sql id="communityConfigColumns">
+		a.id AS "id",
+		a.service_code AS "serviceCode",
+		a.long_calc_days AS "longCalcDays",
+		a.stay_calc_days AS "stayCalcDays",
+		a.new_calc_days AS "newCalcDays",
+		a.long_disappear_warn_days AS "longDisappearWarnDays",
+		a.long_disappear_clear_days AS "longDisappearClearDays",
+		a.msg_types AS "msgTypes",
+		a.remind_type AS "remindType",
+		a.create_by AS "createBy",
+		a.update_time AS "updateTime"
+	</sql>
+	
+	<sql id="communityConfigJoins">
+	</sql>
+	
+	<select id="getById" parameterType="java.lang.String" resultType="CommunityConfig">
+		SELECT 
+			<include refid="communityConfigColumns"/>
+		FROM ser_rq_community_config a
+		<include refid="communityConfigJoins"/>
+		WHERE a.id = #{id}
+	</select>
+    
+	<select id="get" resultType="CommunityConfig">
+		SELECT 
+			<include refid="communityConfigColumns"/>
+		FROM ser_rq_community_config a
+		<include refid="communityConfigJoins"/>
+		WHERE a.id = #{id}
+	</select>
+	
+	<select id="findList" resultType="CommunityConfig">
+		SELECT service_name AS "serviceName",
+			<include refid="communityConfigColumns"/>
+		FROM ser_rq_community_config a
+		<include refid="communityConfigJoins"/>
+		INNER JOIN service_info b ON (b.service_code = a.service_code AND b.is_allow_insert='1')
+		<if test="serviceName != null and serviceName != ''">
+		 AND b.service_name LIKE '%'||#{serviceName}||'%'
+		</if>
+		<where>
+			
+			<if test="serviceCode != null and serviceCode != ''">
+				AND a.service_code LIKE '%'||#{serviceCode}||'%'
+			</if>
+		</where>
+		<choose>
+			<when test="page !=null and page.orderBy != null and page.orderBy != ''">
+				ORDER BY ${page.orderBy}
+			</when>
+			<otherwise>
+			</otherwise>
+		</choose>
+	</select>
+		
+	<insert id="insert">
+		INSERT INTO ser_rq_community_config(
+			id,
+			service_code,
+			long_calc_days,
+			stay_calc_days,
+			new_calc_days,
+			long_disappear_warn_days,
+			long_disappear_clear_days,
+			msg_types,
+			remind_type,
+			create_by,
+			update_time
+		) VALUES (
+			ser_rq_community_config_SEQ.NEXTVAL,
+			#{serviceCode},
+			#{longCalcDays},
+			#{stayCalcDays},
+			#{newCalcDays},
+			#{longDisappearWarnDays},
+			#{longDisappearClearDays},
+			#{msgTypes},
+			#{remindType},
+			#{createBy},
+			#{updateTime}
+		)
+	</insert>
+	
+	<update id="update">
+		UPDATE ser_rq_community_config SET 	
+			service_code = #{serviceCode},
+			long_calc_days = #{longCalcDays},
+			stay_calc_days = #{stayCalcDays},
+			new_calc_days = #{newCalcDays},
+			long_disappear_warn_days = #{longDisappearWarnDays},
+			long_disappear_clear_days = #{longDisappearClearDays},
+			msg_types = #{msgTypes},
+			remind_type = #{remindType},
+			update_time = #{updateTime}
+		WHERE id = #{id}
+	</update>
+	
+	<update id="deleteById" parameterType="java.lang.String" >
+		DELETE FROM ser_rq_community_config
+		WHERE id = #{id}
+	</update>
+	
+	<update id="delete">
+		DELETE FROM ser_rq_community_config
+		WHERE id = #{id}
+	</update>
+	
+	<select id="findServiceInfoList" resultType="ServiceInfo">
+		SELECT 
+			a.service_code "serviceCode",
+			a.service_name "serviceName"
+		FROM service_info a
+		where a.IS_ALLOW_INSERT = '1' AND a.service_type = 'z'
+			<if test="areaCode != null and areaCode != ''">
+				AND a.area_code LIKE #{areaCode}||'%'
+			</if>
+			AND NOT EXISTS (SELECT 1 FROM SER_RQ_COMMUNITY_CONFIG S WHERE s.service_code = a.service_code
+			<if test="serviceCode != null and serviceCode != ''">
+				AND a.service_code != #{serviceCode}
+			</if>
+			)
+	</select>
+</mapper>
