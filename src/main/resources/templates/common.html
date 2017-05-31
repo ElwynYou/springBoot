@@ -1,10 +1,30 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org">
-<head>
-
+<head th:fragment="header">
     <meta charset="UTF-8"/>
     <link th:href="@{/js/layui/css/layui.css}" rel="stylesheet"/>
+    <link th:href="@{/js/layui/css/layui-global.css}" rel="stylesheet"/>
     <script th:src="@{/js/layui/layui.js}"></script>
+    <script>
+        layui.config({
+            base: '/js/modules/' //你的模块目录
+        }).use('index'); //加载入口
+    </script>
 </head>
+<body>
+
+<div class="layui-footer footer footer-demo" th:fragment="footer" >
+    <div class="layui-main">
+        <p>© 2017 <a href="/">Elwyn</a> MIT license</p>
+        <p>
+            <a href="http://fly.layui.com/case/2017/" target="_blank">案例</a>
+            <a href="http://fly.layui.com/jie/3147.html" target="_blank">捐赠</a>
+            <a href="elonyong@163.com">联系</a>
+            <a href="http://fly.layui.com/jie/4281.html" target="_blank">Git仓库</a>
+            <a href="http://fly.layui.com/jie/2461.html" target="_blank">微信公众号</a>
+        </p>
+    </div>
+</div>
+</body>
 </html>
