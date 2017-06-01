@@ -12,8 +12,10 @@ spring:
             content-type: text/html
             prefix: classpath:/templates/
             suffix: .html
-
 mybatis:
   mapper-locations: classpath*:mapper/*.xml
   check-config-location: true
   type-aliases-package: com.elwyn.entity
+server:
+  context-path: /elwyn
+  port: 9999
