@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<head th:include="common :: header">
+</head>
+<body>
+<div class="layui-layout layui-layout-admin" style="border-bottom: solid 5px #1aa094;">
+    <div th:replace="common :: nav-header"></div>
+    <div th:replace="common :: nav-side"></div>
+    <div th:replace="common :: nav-body"></div>
+    <div th:replace="common :: nav-footer"></div>
+</div>
+</body>
+<script type="text/javascript" th:src="datas/nav.js"></script>
+</html>
+
+<script>
+    layui.use('layer', function() {
+        var $ = layui.jquery,
+            layer = layui.layer;
+
+        $('#video1').on('click', function() {
+            layer.open({
+                title: 'YouTube',
+                maxmin: true,
+                type: 2,
+                content: 'video.html',
+                area: ['800px', '500px']
+            });
+        });
+        $('#pay').on('click', function () {
+            layer.open({
+                title: false,
+                type: 1,
+                content: '<img src="images/xx.png" />',
+                area: ['500px', '250px'],
+                shadeClose: true
+            });
+        });
+
+    });
+</script>
