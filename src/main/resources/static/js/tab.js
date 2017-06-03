@@ -217,8 +217,9 @@ layui.define(['element', 'common'], function (exports) {
                             //
                             switch (target) {
                                 case 'refresh': //刷新当前
-                                    var src = ELEM.contentBox.find('iframe[data-id=' + id + ']')[0].src;
-                                    ELEM.contentBox.find('iframe[data-id=' + id + ']')[0].src = src;
+                                   /* var src = ELEM.contentBox.find('iframe[data-id=' + id + ']')[0].src;
+                                    ELEM.contentBox.find('iframe[data-id=' + id + ']')[0].src = src;*/
+                                    ELEM.contentBox.find('iframe[data-id=' + id + ']')[0].contentWindow.location.reload();
                                     break;
                                 case 'closeCurrent': //关闭当前
                                     if (clickIndex !== 0) {

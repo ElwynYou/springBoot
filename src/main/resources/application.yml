@@ -12,6 +12,14 @@ spring:
             content-type: text/html
             prefix: classpath:/templates/
             suffix: .html
+    devtools:
+      livereload:
+        enabled: true
+##增加如下配置可以避免找不到静态文件的问题
+    mvc:
+      static-path-pattern: /**
+    resources:
+      static-locations:  classpath:/templates/,classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/
 mybatis:
   mapper-locations: classpath*:mapper/*.xml
   check-config-location: true
