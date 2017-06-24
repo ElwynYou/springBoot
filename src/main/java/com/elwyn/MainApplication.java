@@ -14,6 +14,6 @@ public class MainApplication {
 	}
 	@RequestMapping("/index")
 	public String index(){
-		return "html/index";
+		return "html/index_nav";
 	}
 }
